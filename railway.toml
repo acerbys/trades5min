@@ -1,0 +1,13 @@
+{
+  "name": "btc5min-collector",
+  "version": "1.0.0",
+  "description": "Polymarket BTC 5min WebSocket trade collector",
+  "main": "collector.js",
+  "scripts": {
+    "start": "node collector.js"
+  },
+  "dependencies": {
+    "node-fetch": "2.7.0",
+    "ws": "8.18.0"
+  }
+}
