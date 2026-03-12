@@ -1,7 +1,4 @@
 // collector.js
-// WebSocket коллектор для BTC 5min маркетов Polymarket
-// Подписывается на tokenIds (UP/DOWN), пишет сделки в Supabase trades5min
-
 const WebSocket = require('ws');
 const fetch = require('node-fetch');
 
@@ -28,17 +25,16 @@ async function getMarketData(slug) {
     const data = await res.json();
     if (!data || !data[0]) return null;
     const market = data[0];
-    let tokenUp = null;
-    let tokenDown = null;
+    let tokenUp = null, tokenDown = null;
     if (market.clobTokenIds) {
       const tokens = JSON.parse(market.clobTokenIds);
       tokenUp = tokens[0];
       tokenDown = tokens[1];
     }
-    console.log(`[getMarketData] conditionId=${market.conditionId} tokenUp=${tokenUp ? tokenUp.slice(0,10) : 'null'} tokenDown=${tokenDown ? tokenDown.slice(0,10) : 'null'}`);
+    console.log(`[market] ${slug} tokenUp=${tokenUp ? tokenUp.slice(0,8) : 'null'}... tokenDown=${tokenDown ? tokenDown.slice(0,8) : 'null'}...`);
     return { conditionId: market.conditionId, tokenUp, tokenDown };
   } catch (err) {
-    console.error(`[getMarketData] Error for ${slug}:`, err.message);
+    console.error(`[getMarketData] Error:`, err.message);
     return null;
   }
 }
@@ -57,11 +53,21 @@ async function saveTrade(trade) {
     });
     if (!res.ok) {
       const err = await res.text();
-      console.error('[saveTrade] Supabase error:', err);
+      console.error('[saveTrade] Error:', err);
     }
   } catch (err) {
     console.error('[saveTrade] Fetch error:', err.message);
   }
+}
+
+function isTrade(msg) {
+  // Сделка: есть asset_id + price + size, НЕТ массивов price_changes/bids/asks
+  return msg.asset_id &&
+         msg.price !== undefined &&
+         msg.size !== undefined &&
+         !msg.price_changes &&
+         !msg.bids &&
+         !msg.asks;
 }
 
 function connect() {
@@ -81,36 +87,44 @@ function connect() {
 
   ws.on('open', () => {
     console.log('[ws] Connected');
-    const sub = {
+    ws.send(JSON.stringify({
       auth: {},
       type: 'Market',
       assets_ids: [currentTokenUp, currentTokenDown]
-    };
-    ws.send(JSON.stringify(sub));
-    console.log(`[ws] Subscribed UP=${currentTokenUp.slice(0,10)}... DOWN=${currentTokenDown.slice(0,10)}...`);
+    }));
+    console.log(`[ws] Subscribed to ${currentSlug}`);
   });
 
   ws.on('message', async (data) => {
     try {
       const messages = JSON.parse(data.toString());
       const arr = Array.isArray(messages) ? messages : [messages];
+
       for (const msg of arr) {
-        console.log('[ws raw]', JSON.stringify(msg).slice(0, 200));
-        const etype = msg.event_type || msg.type || '';
-        if (etype !== 'trade') continue;
+        if (!isTrade(msg)) continue;
+
         let outcome = 'Unknown';
         if (msg.asset_id === currentTokenUp) outcome = 'Up';
         else if (msg.asset_id === currentTokenDown) outcome = 'Down';
+
+        // timestamp: у Polymarket это unix seconds или millis
+        const ts = msg.timestamp
+          ? (msg.timestamp > 1e12
+              ? new Date(Number(msg.timestamp)).toISOString()
+              : new Date(Number(msg.timestamp) * 1000).toISOString())
+          : new Date().toISOString();
+
         const trade = {
           slug: currentSlug,
           condition_id: currentConditionId,
-          timestamp: new Date(Number(msg.timestamp) * 1000).toISOString(),
+          timestamp: ts,
           outcome,
           price: parseFloat(msg.price),
           size: parseFloat(msg.size),
           side: msg.side || null
         };
-        console.log(`[trade] ${trade.slug} | ${trade.outcome} | ${trade.price} | ${trade.size}`);
+
+        console.log(`[trade] ${trade.outcome} | price=${trade.price} | size=${trade.size}`);
         await saveTrade(trade);
       }
     } catch (err) {
