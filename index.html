@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BTC/5MIN // POLYMARKET TRACKER</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080b0f;
+    --bg2: #0d1117;
+    --bg3: #111820;
+    --border: #1e2d3d;
+    --text: #c9d1d9;
+    --dim: #4a5568;
+    --up: #00e676;
+    --up-dim: #1a3a2a;
+    --down: #ff5252;
+    --down-dim: #3a1a1a;
+    --yellow: #ffd600;
+    --blue: #40c4ff;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Rajdhani', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--yellow);
+    letter-spacing: 2px;
+  }
+
+  .logo span { color: var(--dim); }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  .live-dot {
+    width: 7px; height: 7px;
+    background: var(--up);
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+    display: inline-block;
+    margin-right: 5px;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+  }
+
+  .btn:hover { border-color: var(--yellow); color: var(--yellow); }
+  .btn.active { border-color: var(--yellow); color: var(--yellow); }
+
+  /* LIVE PANEL */
+  .live-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .live-cell {
+    padding: 16px 20px;
+    border-right: 1px solid var(--border);
+  }
+
+  .live-cell:last-child { border-right: none; }
+
+  .live-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .live-value {
+    font-family: var(--mono);
+    font-size: 26px;
+    font-weight: bold;
+    color: var(--yellow);
+    line-height: 1;
+  }
+
+  .live-value.up { color: var(--up); }
+  .live-value.down { color: var(--down); }
+
+  .live-sub {
+    font-size: 11px;
+    color: var(--dim);
+    margin-top: 3px;
+    font-family: var(--mono);
+  }
+
+  .price-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .price-bar-track {
+    flex: 1;
+    height: 3px;
+    background: var(--down);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .price-bar-fill {
+    height: 100%;
+    background: var(--up);
+    transition: width 0.5s;
+  }
+
+  /* STATS ROW */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+
+  .stat-cell {
+    padding: 12px 20px;
+    border-right: 1px solid var(--border);
+  }
+
+  .stat-cell:last-child { border-right: none; }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: var(--mono);
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 20px;
+    color: var(--text);
+    margin-top: 2px;
+  }
+
+  .stat-value.up { color: var(--up); }
+  .stat-value.down { color: var(--down); }
+
+  /* TABLE */
+  .table-wrap {
+    overflow-x: auto;
+    padding: 0 0 40px;
+  }
+
+  .section-title {
+    padding: 10px 20px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  thead tr {
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+
+  th {
+    padding: 8px 10px;
+    text-align: center;
+    color: var(--dim);
+    font-size: 10px;
+    letter-spacing: 1px;
+    font-weight: 400;
+    white-space: nowrap;
+  }
+
+  th.left { text-align: left; }
+
+  .th-up { color: var(--up); background: rgba(0,230,118,0.04); }
+  .th-down { color: var(--down); background: rgba(255,82,82,0.04); }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(30,45,61,0.5);
+    transition: background 0.1s;
+  }
+
+  tbody tr:hover { background: var(--bg3); }
+
+  tbody tr.live-row { background: rgba(255, 214, 0, 0.03); }
+
+  td {
+    padding: 7px 10px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  td.left { text-align: left; }
+
+  .date-cell { color: var(--dim); font-size: 11px; }
+  .period-cell { color: var(--text); font-size: 12px; font-weight: 600; font-family: var(--sans); }
+
+  .price-up { color: var(--up); }
+  .price-down { color: var(--down); }
+  .price-dim { color: var(--dim); }
+  .time-cell { color: #5a7a9a; font-size: 11px; }
+
+  .outcome-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    font-weight: 700;
+    border-radius: 2px;
+  }
+
+  .outcome-up { background: var(--up-dim); color: var(--up); border: 1px solid rgba(0,230,118,0.3); }
+  .outcome-down { background: var(--down-dim); color: var(--down); border: 1px solid rgba(255,82,82,0.3); }
+  .outcome-live { background: rgba(255,214,0,0.1); color: var(--yellow); border: 1px solid rgba(255,214,0,0.3); animation: pulse 1.5s infinite; }
+  .outcome-unknown { color: var(--dim); }
+
+  .up-col { background: rgba(0,230,118,0.02); }
+  .down-col { background: rgba(255,82,82,0.02); }
+
+  /* LOADING */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    font-family: var(--mono);
+    color: var(--dim);
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+
+  .error-msg {
+    padding: 20px;
+    color: var(--down);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  /* TIMER */
+  #timer { color: var(--yellow); }
+  #elapsed { color: var(--blue); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">BTC<span>/</span>5MIN <span>//</span> POLYMARKET TRACKER</div>
+  <div class="header-right">
+    <span><span class="live-dot"></span><span id="live-time">—</span> UTC</span>
+    <button class="btn" onclick="loadData()">⟳ REFRESH</button>
+  </div>
+</div>
+
+<div class="live-panel">
+  <div class="live-cell">
+    <div class="live-label">Текущий маркет</div>
+    <div class="live-value" id="market-label">—</div>
+    <div class="live-sub" id="market-date">—</div>
+  </div>
+  <div class="live-cell">
+    <div class="live-label">LIVE UP / DOWN</div>
+    <div class="price-bar">
+      <span class="live-value up" id="live-up">—</span>
+      <span style="color:var(--dim);font-family:var(--mono);font-size:14px">vs</span>
+      <span class="live-value down" id="live-down">—</span>
+    </div>
+    <div class="price-bar-track"><div class="price-bar-fill" id="price-bar" style="width:50%"></div></div>
+  </div>
+  <div class="live-cell">
+    <div class="live-label">Осталось</div>
+    <div class="live-value" id="timer">—</div>
+    <div class="live-sub">из 5:00 минут</div>
+  </div>
+  <div class="live-cell">
+    <div class="live-label">Прошло от старта</div>
+    <div class="live-value" id="elapsed">—</div>
+    <div class="live-sub">активен</div>
+  </div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-cell">
+    <div class="stat-label">Маркетов записано</div>
+    <div class="stat-value" id="stat-total">—</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">UP победил</div>
+    <div class="stat-value up" id="stat-up">—</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">DOWN победил</div>
+    <div class="stat-value down" id="stat-down">—</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">UP min &lt; 20¢</div>
+    <div class="stat-value" id="stat-up20">—</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-label">% UP выиграл (конверсия)</div>
+    <div class="stat-value" id="stat-conv">—</div>
+  </div>
+</div>
+
+<div class="section-title">
+  <span>История маркетов — полная 5-минутная свеча</span>
+  <span id="table-count" style="color:var(--dim)"></span>
+</div>
+
+<div class="table-wrap">
+  <div id="loading" class="loading">ЗАГРУЗКА ДАННЫХ...</div>
+  <div id="error" class="error-msg" style="display:none"></div>
+  <table id="main-table" style="display:none">
+    <thead>
+      <tr>
+        <th class="left" rowspan="2">ДАТА UTC</th>
+        <th class="left" rowspan="2">ПЕРИОД</th>
+        <th colspan="5" class="th-up">▲ UP</th>
+        <th colspan="5" class="th-down">▼ DOWN</th>
+        <th rowspan="2">ИСХОД</th>
+      </tr>
+      <tr>
+        <th class="th-up">СТАРТ</th>
+        <th class="th-up">MIN ¢</th>
+        <th class="th-up">@ М:СС</th>
+        <th class="th-up">MAX ¢</th>
+        <th class="th-up">@ М:СС</th>
+        <th class="th-down">СТАРТ</th>
+        <th class="th-down">MIN ¢</th>
+        <th class="th-down">@ М:СС</th>
+        <th class="th-down">MAX ¢</th>
+        <th class="th-down">@ М:СС</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<script>
+let liveData = null;
+let timerInterval = null;
+
+function fmt(price) {
+  if (price === null || price === undefined) return '—';
+  return Math.round(price * 100);
+}
+
+function fmtTime(secs) {
+  if (secs === null || secs === undefined) return '—';
+  const m = Math.floor(Math.abs(secs) / 60);
+  const s = Math.floor(Math.abs(secs) % 60);
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function fmtDate(ts) {
+  const d = new Date(ts * 1000);
+  const dd = String(d.getUTCDate()).padStart(2,'0');
+  const mm = String(d.getUTCMonth()+1).padStart(2,'0');
+  return `${dd}.${mm}`;
+}
+
+function fmtPeriod(ts) {
+  const start = new Date(ts * 1000);
+  const end = new Date((ts + 300) * 1000);
+  const hh1 = String(start.getUTCHours()).padStart(2,'0');
+  const mm1 = String(start.getUTCMinutes()).padStart(2,'0');
+  const hh2 = String(end.getUTCHours()).padStart(2,'0');
+  const mm2 = String(end.getUTCMinutes()).padStart(2,'0');
+  return `${hh1}:${mm1}–${hh2}:${mm2}`;
+}
+
+function getCurrentMarketTs() {
+  return Math.floor(Date.now() / 1000 / 300) * 300;
+}
+
+function updateClock() {
+  const now = new Date();
+  const hh = String(now.getUTCHours()).padStart(2,'0');
+  const mm = String(now.getUTCMinutes()).padStart(2,'0');
+  const ss = String(now.getUTCSeconds()).padStart(2,'0');
+  document.getElementById('live-time').textContent = `${hh}:${mm}:${ss}`;
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const bucketStart = Math.floor(nowSec / 300) * 300;
+  const elapsed = nowSec - bucketStart;
+  const remaining = 300 - elapsed;
+
+  const rm = Math.floor(remaining / 60);
+  const rs = remaining % 60;
+  document.getElementById('timer').textContent = `${rm}:${String(rs).padStart(2,'0')}`;
+  document.getElementById('elapsed').textContent = fmtTime(elapsed);
+
+  // Update live prices from current market data
+  if (liveData && liveData.length > 0) {
+    const current = liveData.find(m => m.market_start === bucketStart);
+    if (current) {
+      const upPrice = current.up_max !== null ? fmt(current.up_max) : '—';
+      const downPrice = current.down_max !== null ? fmt(current.down_max) : '—';
+      document.getElementById('live-up').textContent = upPrice !== '—' ? upPrice + '¢' : '—';
+      document.getElementById('live-down').textContent = downPrice !== '—' ? downPrice + '¢' : '—';
+      if (current.up_max !== null && current.down_max !== null) {
+        const upPct = current.up_max * 100;
+        document.getElementById('price-bar').style.width = upPct + '%';
+      }
+    }
+  }
+}
+
+async function loadData() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('main-table').style.display = 'none';
+  document.getElementById('error').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/data');
+    const data = await res.json();
+
+    if (!Array.isArray(data)) throw new Error(data.error || 'Bad response');
+
+    liveData = data;
+    renderTable(data);
+  } catch(err) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').style.display = 'block';
+    document.getElementById('error').textContent = 'Ошибка: ' + err.message;
+  }
+}
+
+function renderTable(data) {
+  const now = Math.floor(Date.now() / 1000);
+  const currentBucket = Math.floor(now / 300) * 300;
+
+  // Current market label
+  const hh1 = String(new Date(currentBucket*1000).getUTCHours()).padStart(2,'0');
+  const mm1 = String(new Date(currentBucket*1000).getUTCMinutes()).padStart(2,'0');
+  const hh2 = String(new Date((currentBucket+300)*1000).getUTCHours()).padStart(2,'0');
+  const mm2 = String(new Date((currentBucket+300)*1000).getUTCMinutes()).padStart(2,'0');
+  document.getElementById('market-label').textContent = `${hh1}:${mm1}–${hh2}:${mm2} UTC`;
+  const d = new Date(currentBucket*1000);
+  document.getElementById('market-date').textContent =
+    `${String(d.getUTCDate()).padStart(2,'0')}.${String(d.getUTCMonth()+1).padStart(2,'0')} ${hh1}:${mm1}`;
+
+  // Stats
+  const closed = data.filter(m => m.outcome);
+  const upWins = closed.filter(m => m.outcome === 'UP').length;
+  const downWins = closed.filter(m => m.outcome === 'DOWN').length;
+  const upLow = closed.filter(m => m.outcome === 'UP' && m.up_min !== null && m.up_min < 0.20).length;
+  const conv = closed.length > 0 ? Math.round(upWins / closed.length * 100) : 0;
+
+  document.getElementById('stat-total').textContent = data.length;
+  document.getElementById('stat-up').textContent = upWins;
+  document.getElementById('stat-down').textContent = downWins;
+  document.getElementById('stat-up20').textContent = upLow;
+  document.getElementById('stat-conv').textContent = conv + '%';
+
+  // Table
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+
+  let count = 0;
+  for (const m of data) {
+    const isLive = m.market_start === currentBucket;
+    const tr = document.createElement('tr');
+    if (isLive) tr.className = 'live-row';
+
+    let outcomeHtml = '<span class="outcome-unknown">—</span>';
+    if (isLive) {
+      outcomeHtml = '<span class="outcome-badge outcome-live">LIVE</span>';
+    } else if (m.outcome === 'UP') {
+      outcomeHtml = '<span class="outcome-badge outcome-up">UP</span>';
+    } else if (m.outcome === 'DOWN') {
+      outcomeHtml = '<span class="outcome-badge outcome-down">DOWN</span>';
+    }
+
+    tr.innerHTML = `
+      <td class="left date-cell">${fmtDate(m.market_start)}</td>
+      <td class="left period-cell">${fmtPeriod(m.market_start)}</td>
+      <td class="up-col price-up">${fmt(m.up_start)}</td>
+      <td class="up-col price-up" style="font-weight:bold">${fmt(m.up_min)}</td>
+      <td class="up-col time-cell">${fmtTime(m.up_min_time)}</td>
+      <td class="up-col price-up" style="font-weight:bold">${fmt(m.up_max)}</td>
+      <td class="up-col time-cell">${fmtTime(m.up_max_time)}</td>
+      <td class="down-col price-down">${fmt(m.down_start)}</td>
+      <td class="down-col price-down" style="font-weight:bold">${fmt(m.down_min)}</td>
+      <td class="down-col time-cell">${fmtTime(m.down_min_time)}</td>
+      <td class="down-col price-down" style="font-weight:bold">${fmt(m.down_max)}</td>
+      <td class="down-col time-cell">${fmtTime(m.down_max_time)}</td>
+      <td>${outcomeHtml}</td>
+    `;
+    tbody.appendChild(tr);
+    count++;
+  }
+
+  document.getElementById('table-count').textContent = `↑ ${count} из ${data.length} маркетов`;
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('main-table').style.display = 'table';
+}
+
+// Init
+setInterval(updateClock, 1000);
+updateClock();
+loadData();
+// Auto-refresh every 5 minutes
+setInterval(loadData, 5 * 60 * 1000);
+</script>
+</body>
+</html>
