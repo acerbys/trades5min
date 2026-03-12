@@ -82,21 +82,32 @@ async function connect(conditionId, slug) {
 
   ws.on('message', async (data) => {
     try {
-      const messages = JSON.parse(data);
+      const raw = data.toString();
+      const messages = JSON.parse(raw);
       const arr = Array.isArray(messages) ? messages : [messages];
 
       for (const msg of arr) {
-        // Только сделки (trades), не котировки
-        if (msg.event_type !== 'trade') continue;
+        // Логируем первые сообщения чтобы увидеть реальный формат
+        console.log('[ws raw]', JSON.stringify(msg).slice(0, 300));
+
+        // Polymarket WebSocket: event_type может быть 'trade', 'last_trade_price' и др.
+        const etype = msg.event_type || msg.type || '';
+        if (etype !== 'trade') continue;
+
+        // asset_id это tokenId одного из исходов
+        // outcome определяем по asset_id
+        const outcome = msg.asset_id === currentConditionId ? 'Up' : 
+                        (msg.outcome ? msg.outcome : 
+                        (msg.outcome_index === 0 ? 'Up' : 'Down'));
 
         const trade = {
           slug: currentSlug,
           condition_id: currentConditionId,
           timestamp: new Date(Number(msg.timestamp) * 1000).toISOString(),
-          outcome: msg.outcome_index === 0 ? 'Up' : 'Down',
+          outcome: outcome,
           price: parseFloat(msg.price),
           size: parseFloat(msg.size),
-          side: msg.side
+          side: msg.side || null
         };
 
         console.log(`[trade] ${trade.slug} | ${trade.outcome} | ${trade.price} | ${trade.size}`);
