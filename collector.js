@@ -10,13 +10,25 @@ let currentSlug = null;
 let currentConditionId = null;
 let currentTokenUp = null;
 let currentTokenDown = null;
+let nextSlug = null;
+let nextTokenUp = null;
+let nextTokenDown = null;
+let nextConditionId = null;
 let ws = null;
 let reconnectTimer = null;
 
-function getCurrentSlug() {
-  const now = Math.floor(Date.now() / 1000);
-  const bucket = Math.floor(now / 300) * 300;
-  return `btc-updown-5m-${bucket}`;
+// Текущий bucket (активный маркет)
+function getCurrentBucket() {
+  return Math.floor(Date.now() / 1000 / 300) * 300;
+}
+
+// Следующий bucket
+function getNextBucket() {
+  return getCurrentBucket() + 300;
+}
+
+function slugFromBucket(ts) {
+  return `btc-updown-5m-${ts}`;
 }
 
 async function getMarketData(slug) {
@@ -31,7 +43,7 @@ async function getMarketData(slug) {
       tokenUp = tokens[0];
       tokenDown = tokens[1];
     }
-    console.log(`[market] ${slug} tokenUp=${tokenUp ? tokenUp.slice(0,8) : 'null'}... tokenDown=${tokenDown ? tokenDown.slice(0,8) : 'null'}...`);
+    console.log(`[getMarketData] ${slug} tokenUp=${tokenUp ? tokenUp.slice(0,8) : 'null'}...`);
     return { conditionId: market.conditionId, tokenUp, tokenDown };
   } catch (err) {
     console.error(`[getMarketData] Error:`, err.message);
@@ -61,7 +73,6 @@ async function saveTrade(trade) {
 }
 
 function isTrade(msg) {
-  // Сделка: есть asset_id + price + size, НЕТ массивов price_changes/bids/asks
   return msg.asset_id &&
          msg.price !== undefined &&
          msg.size !== undefined &&
@@ -70,19 +81,24 @@ function isTrade(msg) {
          !msg.asks;
 }
 
-function connect() {
+function connect(slug, conditionId, tokenUp, tokenDown) {
   if (ws) {
     ws.removeAllListeners();
     ws.terminate();
     ws = null;
   }
 
-  if (!currentTokenUp || !currentTokenDown) {
+  if (!tokenUp || !tokenDown) {
     console.error('[connect] No tokenIds, skipping');
     return;
   }
 
-  console.log(`[connect] Connecting for ${currentSlug}`);
+  currentSlug = slug;
+  currentConditionId = conditionId;
+  currentTokenUp = tokenUp;
+  currentTokenDown = tokenDown;
+
+  console.log(`[connect] Connecting for ${slug}`);
   ws = new WebSocket(WS_URL);
 
   ws.on('open', () => {
@@ -90,30 +106,25 @@ function connect() {
     ws.send(JSON.stringify({
       auth: {},
       type: 'Market',
-      assets_ids: [currentTokenUp, currentTokenDown]
+      assets_ids: [tokenUp, tokenDown]
     }));
-    console.log(`[ws] Subscribed to ${currentSlug}`);
+    console.log(`[ws] Subscribed to ${slug}`);
   });
 
   ws.on('message', async (data) => {
     try {
       const messages = JSON.parse(data.toString());
       const arr = Array.isArray(messages) ? messages : [messages];
-
       for (const msg of arr) {
         if (!isTrade(msg)) continue;
-
         let outcome = 'Unknown';
         if (msg.asset_id === currentTokenUp) outcome = 'Up';
         else if (msg.asset_id === currentTokenDown) outcome = 'Down';
-
-        // timestamp: у Polymarket это unix seconds или millis
         const ts = msg.timestamp
           ? (msg.timestamp > 1e12
               ? new Date(Number(msg.timestamp)).toISOString()
               : new Date(Number(msg.timestamp) * 1000).toISOString())
           : new Date().toISOString();
-
         const trade = {
           slug: currentSlug,
           condition_id: currentConditionId,
@@ -123,7 +134,6 @@ function connect() {
           size: parseFloat(msg.size),
           side: msg.side || null
         };
-
         console.log(`[trade] ${trade.outcome} | price=${trade.price} | size=${trade.size}`);
         await saveTrade(trade);
       }
@@ -137,31 +147,70 @@ function connect() {
   ws.on('close', () => {
     console.log('[ws] Disconnected, reconnecting in 5s...');
     clearTimeout(reconnectTimer);
-    reconnectTimer = setTimeout(connect, 5000);
+    reconnectTimer = setTimeout(() => connect(currentSlug, currentConditionId, currentTokenUp, currentTokenDown), 5000);
   });
 }
 
-async function checkMarket() {
-  const newSlug = getCurrentSlug();
-  if (newSlug === currentSlug) return;
-  console.log(`[checkMarket] New market: ${newSlug}`);
-  const market = await getMarketData(newSlug);
-  if (!market || !market.tokenUp) {
-    console.error(`[checkMarket] No market data for ${newSlug}`);
-    return;
+// Предзагрузить данные следующего маркета
+async function prefetchNext() {
+  const nextBucket = getNextBucket();
+  const slug = slugFromBucket(nextBucket);
+  if (slug === nextSlug) return; // уже загружен
+  console.log(`[prefetch] Loading next market: ${slug}`);
+  const market = await getMarketData(slug);
+  if (market && market.tokenUp) {
+    nextSlug = slug;
+    nextConditionId = market.conditionId;
+    nextTokenUp = market.tokenUp;
+    nextTokenDown = market.tokenDown;
+    console.log(`[prefetch] Ready: ${slug}`);
   }
-  currentSlug = newSlug;
-  currentConditionId = market.conditionId;
-  currentTokenUp = market.tokenUp;
-  currentTokenDown = market.tokenDown;
-  connect();
+}
+
+async function checkMarket() {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const currentBucket = getCurrentBucket();
+  const slug = slugFromBucket(currentBucket);
+  const secsIntoMarket = nowSec - currentBucket;
+  const secsToNext = 300 - secsIntoMarket;
+
+  // Переключаемся на новый маркет
+  if (slug !== currentSlug) {
+    console.log(`[checkMarket] Switching to ${slug}`);
+
+    // Если следующий маркет уже prefetch'нут — используем
+    if (nextSlug === slug && nextTokenUp) {
+      connect(slug, nextConditionId, nextTokenUp, nextTokenDown);
+      nextSlug = null;
+    } else {
+      // Иначе загружаем сейчас
+      const market = await getMarketData(slug);
+      if (market && market.tokenUp) {
+        connect(slug, market.conditionId, market.tokenUp, market.tokenDown);
+      }
+    }
+  }
+
+  // Предзагружаем следующий маркет за 30 секунд до старта
+  if (secsToNext <= 30) {
+    await prefetchNext();
+  }
 }
 
 async function main() {
   console.log('[main] Starting BTC 5min WebSocket collector...');
   console.log(`[main] Supabase URL: ${SUPABASE_URL}`);
-  await checkMarket();
-  setInterval(checkMarket, 10_000);
+
+  // Предзагрузить текущий маркет сразу
+  const currentBucket = getCurrentBucket();
+  const slug = slugFromBucket(currentBucket);
+  const market = await getMarketData(slug);
+  if (market && market.tokenUp) {
+    connect(slug, market.conditionId, market.tokenUp, market.tokenDown);
+  }
+
+  // Проверять каждые 5 секунд
+  setInterval(checkMarket, 5000);
 }
 
 main().catch(err => {
