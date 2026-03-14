@@ -298,6 +298,30 @@
   /* TIMER */
   #timer { color: var(--yellow); }
   #elapsed { color: var(--blue); }
+
+  /* SELECTED ROW */
+  tbody tr.selected { background: rgba(255,214,0,0.08) !important; outline: 1px solid rgba(255,214,0,0.4); }
+  tbody tr { cursor: pointer; }
+
+  /* DELETE BTN */
+  .btn-danger { border-color: var(--down); color: var(--down); }
+  .btn-danger:hover { background: rgba(255,82,82,0.1); }
+
+  /* CONFIRM MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #0d1117; border: 1px solid var(--border);
+    padding: 24px 32px; font-family: var(--mono);
+    min-width: 320px; text-align: center;
+  }
+  .modal h3 { color: var(--yellow); margin-bottom: 12px; font-size: 13px; letter-spacing: 2px; }
+  .modal p { color: var(--text); font-size: 12px; margin-bottom: 20px; }
+  .modal-btns { display: flex; gap: 10px; justify-content: center; }
 </style>
 </head>
 <body>
@@ -307,6 +331,9 @@
   <div class="header-right">
     <span><span class="live-dot"></span><span id="live-time">—</span> UTC</span>
     <button class="btn" onclick="loadData()">⟳ REFRESH</button>
+    <button class="btn" onclick="exportCSV()">↓ CSV</button>
+    <button class="btn btn-danger" onclick="confirmClearSelected()" id="btn-del-row" style="display:none">✕ УДАЛИТЬ СТРОКУ</button>
+    <button class="btn btn-danger" onclick="confirmClearAll()">⊘ ОЧИСТИТЬ ВСЁ</button>
   </div>
 </div>
 
@@ -520,6 +547,8 @@ function renderTable(data) {
     const isLive = m.market_start === currentBucket;
     const tr = document.createElement('tr');
     if (isLive) tr.className = 'live-row';
+    tr.dataset.slug = m.slug;
+    tr.addEventListener('click', () => selectRow(tr, m.slug));
 
     let outcomeHtml = '<span class="outcome-unknown">—</span>';
     if (isLive) {
@@ -554,6 +583,85 @@ function renderTable(data) {
   document.getElementById('main-table').style.display = 'table';
 }
 
+// --- SELECTION ---
+let selectedSlug = null;
+
+function selectRow(tr, slug) {
+  document.querySelectorAll('tbody tr.selected').forEach(r => r.classList.remove('selected'));
+  if (selectedSlug === slug) {
+    selectedSlug = null;
+    document.getElementById('btn-del-row').style.display = 'none';
+  } else {
+    tr.classList.add('selected');
+    selectedSlug = slug;
+    document.getElementById('btn-del-row').style.display = 'inline-block';
+  }
+}
+
+// --- CSV EXPORT ---
+function exportCSV() {
+  if (!liveData || !liveData.length) return;
+  const headers = ['Дата UTC','Период','UP Старт','UP Min','UP Min Time','UP Max','UP Max Time','DOWN Старт','DOWN Min','DOWN Min Time','DOWN Max','DOWN Max Time','Исход'];
+  const rows = liveData.map(m => [
+    fmtDate(m.market_start),
+    fmtPeriod(m.market_start),
+    fmt(m.up_start), fmt(m.up_min), fmtTime(m.up_min_time),
+    fmt(m.up_max), fmtTime(m.up_max_time),
+    fmt(m.down_start), fmt(m.down_min), fmtTime(m.down_min_time),
+    fmt(m.down_max), fmtTime(m.down_max_time),
+    m.outcome || '—'
+  ]);
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `btc5min_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// --- MODAL ---
+let modalAction = null;
+
+function confirmClearAll() {
+  document.getElementById('modal-title').textContent = 'ОЧИСТИТЬ ВСЕ ДАННЫЕ';
+  document.getElementById('modal-text').textContent = 'Удалить все маркеты из таблицы markets_agg? Это действие необратимо.';
+  document.getElementById('modal-confirm').onclick = clearAll;
+  document.getElementById('modal').classList.add('show');
+}
+
+function confirmClearSelected() {
+  if (!selectedSlug) return;
+  document.getElementById('modal-title').textContent = 'УДАЛИТЬ МАРКЕТ';
+  document.getElementById('modal-text').textContent = `Удалить маркет ${selectedSlug}?`;
+  document.getElementById('modal-confirm').onclick = clearSelected;
+  document.getElementById('modal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+}
+
+async function clearAll() {
+  closeModal();
+  try {
+    const res = await fetch('/api/clear', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({all: true}) });
+    const data = await res.json();
+    if (data.ok) { selectedSlug = null; document.getElementById('btn-del-row').style.display = 'none'; loadData(); }
+    else alert('Ошибка: ' + data.error);
+  } catch(e) { alert('Ошибка: ' + e.message); }
+}
+
+async function clearSelected() {
+  closeModal();
+  if (!selectedSlug) return;
+  try {
+    const res = await fetch('/api/clear', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({slug: selectedSlug}) });
+    const data = await res.json();
+    if (data.ok) { selectedSlug = null; document.getElementById('btn-del-row').style.display = 'none'; loadData(); }
+    else alert('Ошибка: ' + data.error);
+  } catch(e) { alert('Ошибка: ' + e.message); }
+}
+
 // Init
 setInterval(updateClock, 1000);
 updateClock();
@@ -561,5 +669,16 @@ loadData();
 // Auto-refresh every 5 minutes
 setInterval(loadData, 5 * 60 * 1000);
 </script>
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">ПОДТВЕРЖДЕНИЕ</h3>
+    <p id="modal-text"></p>
+    <div class="modal-btns">
+      <button class="btn btn-danger" id="modal-confirm">ДА, УДАЛИТЬ</button>
+      <button class="btn" onclick="closeModal()">ОТМЕНА</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
