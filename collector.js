@@ -253,13 +253,229 @@ async function checkMarket() {
 
 setInterval(async () => { await upsertAgg(); }, 30000);
 
-async function main() {
-  console.log('[main] Starting collector...');
+// All coins to track
+const COINS = ['btc', 'eth', 'sol', 'xrp', 'doge', 'hype', 'bnb'];
+
+// Per-coin state
+const coinState = {};
+for (const coin of COINS) {
+  coinState[coin] = {
+    currentSlug: null, conditionId: null, tokenUp: null, tokenDown: null,
+    nextSlug: null, nextConditionId: null, nextTokenUp: null, nextTokenDown: null,
+    ws: null, reconnectTimer: null, agg: null, upsertCounter: 0
+  };
+}
+
+function slugFromBucketCoin(ts, coin) {
+  return `${coin}-updown-5m-${ts}`;
+}
+
+async function getMarketDataCoin(slug) {
+  try {
+    const res = await fetch(`https://gamma-api.polymarket.com/markets?slug=${slug}`);
+    const data = await res.json();
+    if (!data || !data[0]) return null;
+    const market = data[0];
+    let tokenUp = null, tokenDown = null;
+    if (market.clobTokenIds) {
+      const tokens = JSON.parse(market.clobTokenIds);
+      tokenUp = tokens[0]; tokenDown = tokens[1];
+    }
+    return { conditionId: market.conditionId, tokenUp, tokenDown };
+  } catch (err) {
+    console.error(`[getMarketData] Error for ${slug}:`, err.message);
+    return null;
+  }
+}
+
+function initAggCoin(coin, slug, marketStart) {
+  coinState[coin].agg = {
+    slug, coin, market_start: marketStart,
+    up_start: null, up_min: null, up_min_time: null, up_max: null, up_max_time: null,
+    up_min_m1: null, up_max_m1: null, up_min_m2: null, up_max_m2: null,
+    up_min_m3: null, up_max_m3: null, up_min_m4: null, up_max_m4: null,
+    up_min_m5: null, up_max_m5: null,
+    down_start: null, down_min: null, down_min_time: null, down_max: null, down_max_time: null,
+    down_min_m1: null, down_max_m1: null, down_min_m2: null, down_max_m2: null,
+    down_min_m3: null, down_max_m3: null, down_min_m4: null, down_max_m4: null,
+    down_min_m5: null, down_max_m5: null,
+    outcome: null
+  };
+}
+
+function updateAggCoin(coin, trade, marketStart) {
+  const a = coinState[coin].agg;
+  if (!a) return;
+  const price = trade.price;
+  const elapsed = (new Date(trade.timestamp).getTime() / 1000) - marketStart;
+
+  if (elapsed > 300) {
+    if (trade.outcome === 'Up' && price > 0.95) a.outcome = 'UP';
+    else if (trade.outcome === 'Up' && price < 0.05) a.outcome = 'DOWN';
+    else if (trade.outcome === 'Down' && price > 0.95) a.outcome = 'DOWN';
+    else if (trade.outcome === 'Down' && price < 0.05) a.outcome = 'UP';
+    return;
+  }
+
+  const m = elapsed < 60 ? 1 : elapsed < 120 ? 2 : elapsed < 180 ? 3 : elapsed < 240 ? 4 : 5;
+
+  if (trade.outcome === 'Up') {
+    if (a.up_start === null) a.up_start = price;
+    if (a.up_min === null || price < a.up_min) { a.up_min = price; a.up_min_time = elapsed; }
+    if (a.up_max === null || price > a.up_max) { a.up_max = price; a.up_max_time = elapsed; }
+    if (a[`up_min_m${m}`] === null || price < a[`up_min_m${m}`]) a[`up_min_m${m}`] = price;
+    if (a[`up_max_m${m}`] === null || price > a[`up_max_m${m}`]) a[`up_max_m${m}`] = price;
+  } else if (trade.outcome === 'Down') {
+    if (a.down_start === null) a.down_start = price;
+    if (a.down_min === null || price < a.down_min) { a.down_min = price; a.down_min_time = elapsed; }
+    if (a.down_max === null || price > a.down_max) { a.down_max = price; a.down_max_time = elapsed; }
+    if (a[`down_min_m${m}`] === null || price < a[`down_min_m${m}`]) a[`down_min_m${m}`] = price;
+    if (a[`down_max_m${m}`] === null || price > a[`down_max_m${m}`]) a[`down_max_m${m}`] = price;
+  }
+}
+
+async function upsertAggCoin(coin) {
+  const a = coinState[coin].agg;
+  if (!a) return;
+  try {
+    await pool.query(
+      `INSERT INTO markets_agg (
+        slug, coin, market_start,
+        up_start, up_min, up_min_time, up_max, up_max_time,
+        up_min_m1, up_max_m1, up_min_m2, up_max_m2, up_min_m3, up_max_m3, up_min_m4, up_max_m4, up_min_m5, up_max_m5,
+        down_start, down_min, down_min_time, down_max, down_max_time,
+        down_min_m1, down_max_m1, down_min_m2, down_max_m2, down_min_m3, down_max_m3, down_min_m4, down_max_m4, down_min_m5, down_max_m5,
+        outcome, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,NOW())
+      ON CONFLICT (slug) DO UPDATE SET
+        up_start=EXCLUDED.up_start, up_min=EXCLUDED.up_min, up_min_time=EXCLUDED.up_min_time,
+        up_max=EXCLUDED.up_max, up_max_time=EXCLUDED.up_max_time,
+        up_min_m1=EXCLUDED.up_min_m1, up_max_m1=EXCLUDED.up_max_m1,
+        up_min_m2=EXCLUDED.up_min_m2, up_max_m2=EXCLUDED.up_max_m2,
+        up_min_m3=EXCLUDED.up_min_m3, up_max_m3=EXCLUDED.up_max_m3,
+        up_min_m4=EXCLUDED.up_min_m4, up_max_m4=EXCLUDED.up_max_m4,
+        up_min_m5=EXCLUDED.up_min_m5, up_max_m5=EXCLUDED.up_max_m5,
+        down_start=EXCLUDED.down_start, down_min=EXCLUDED.down_min, down_min_time=EXCLUDED.down_min_time,
+        down_max=EXCLUDED.down_max, down_max_time=EXCLUDED.down_max_time,
+        down_min_m1=EXCLUDED.down_min_m1, down_max_m1=EXCLUDED.down_max_m1,
+        down_min_m2=EXCLUDED.down_min_m2, down_max_m2=EXCLUDED.down_max_m2,
+        down_min_m3=EXCLUDED.down_min_m3, down_max_m3=EXCLUDED.down_max_m3,
+        down_min_m4=EXCLUDED.down_min_m4, down_max_m4=EXCLUDED.down_max_m4,
+        down_min_m5=EXCLUDED.down_min_m5, down_max_m5=EXCLUDED.down_max_m5,
+        outcome=EXCLUDED.outcome, updated_at=NOW()`,
+      [a.slug, coin, a.market_start,
+       a.up_start, a.up_min, a.up_min_time, a.up_max, a.up_max_time,
+       a.up_min_m1, a.up_max_m1, a.up_min_m2, a.up_max_m2,
+       a.up_min_m3, a.up_max_m3, a.up_min_m4, a.up_max_m4, a.up_min_m5, a.up_max_m5,
+       a.down_start, a.down_min, a.down_min_time, a.down_max, a.down_max_time,
+       a.down_min_m1, a.down_max_m1, a.down_min_m2, a.down_max_m2,
+       a.down_min_m3, a.down_max_m3, a.down_min_m4, a.down_max_m4, a.down_min_m5, a.down_max_m5,
+       a.outcome]
+    );
+  } catch (err) {
+    console.error(`[upsertAgg] ${coin} Error:`, err.message);
+  }
+}
+
+function connectCoin(coin, slug, conditionId, tokenUp, tokenDown) {
+  const state = coinState[coin];
+  if (state.ws) { state.ws.removeAllListeners(); state.ws.terminate(); state.ws = null; }
+  if (!tokenUp || !tokenDown) return;
+
+  const marketStart = parseInt(slug.split('-').pop());
+  state.currentSlug = slug; state.conditionId = conditionId;
+  state.tokenUp = tokenUp; state.tokenDown = tokenDown;
+  initAggCoin(coin, slug, marketStart);
+
+  console.log(`[${coin}] Connecting for ${slug}`);
+  const ws = new WebSocket(WS_URL);
+  state.ws = ws;
+
+  ws.on('open', () => {
+    ws.send(JSON.stringify({ auth: {}, type: 'Market', assets_ids: [tokenUp, tokenDown] }));
+    console.log(`[${coin}] Subscribed to ${slug}`);
+  });
+
+  ws.on('message', async (data) => {
+    try {
+      const messages = JSON.parse(data.toString());
+      const arr = Array.isArray(messages) ? messages : [messages];
+      for (const msg of arr) {
+        if (!msg.asset_id || msg.price === undefined || msg.size === undefined || msg.price_changes || msg.bids || msg.asks) continue;
+        let outcome = 'Unknown';
+        if (msg.asset_id === state.tokenUp) outcome = 'Up';
+        else if (msg.asset_id === state.tokenDown) outcome = 'Down';
+        const ts = msg.timestamp
+          ? (msg.timestamp > 1e12 ? new Date(Number(msg.timestamp)).toISOString() : new Date(Number(msg.timestamp) * 1000).toISOString())
+          : new Date().toISOString();
+        const trade = { slug: state.currentSlug, condition_id: state.conditionId, timestamp: ts, outcome, price: parseFloat(msg.price), size: parseFloat(msg.size), side: msg.side || null };
+        updateAggCoin(coin, trade, marketStart);
+        state.upsertCounter++;
+        if (state.upsertCounter % 10 === 0) await upsertAggCoin(coin);
+      }
+    } catch (err) { console.error(`[${coin}] message error:`, err.message); }
+  });
+
+  ws.on('error', (err) => console.error(`[${coin}] WS error:`, err.message));
+  ws.on('close', () => {
+    console.log(`[${coin}] Disconnected, reconnecting in 5s...`);
+    upsertAggCoin(coin);
+    clearTimeout(state.reconnectTimer);
+    state.reconnectTimer = setTimeout(() => connectCoin(coin, state.currentSlug, state.conditionId, state.tokenUp, state.tokenDown), 5000);
+  });
+}
+
+async function checkAllMarkets() {
+  const nowSec = Math.floor(Date.now() / 1000);
   const bucket = getCurrentBucket();
-  const slug = slugFromBucket(bucket);
-  const market = await getMarketData(slug);
-  if (market && market.tokenUp) connect(slug, market.conditionId, market.tokenUp, market.tokenDown);
-  setInterval(checkMarket, 5000);
+  const secsToNext = 300 - (nowSec - bucket);
+
+  for (const coin of COINS) {
+    const state = coinState[coin];
+    const slug = slugFromBucketCoin(bucket, coin);
+
+    if (slug !== state.currentSlug) {
+      console.log(`[${coin}] New market: ${slug}`);
+      await upsertAggCoin(coin);
+      if (state.nextSlug === slug && state.nextTokenUp) {
+        connectCoin(coin, slug, state.nextConditionId, state.nextTokenUp, state.nextTokenDown);
+        state.nextSlug = null;
+      } else {
+        const market = await getMarketDataCoin(slug);
+        if (market && market.tokenUp) connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
+      }
+    }
+
+    if (secsToNext <= 30 && state.nextSlug !== slugFromBucketCoin(bucket + 300, coin)) {
+      const nextSlug = slugFromBucketCoin(bucket + 300, coin);
+      getMarketDataCoin(nextSlug).then(market => {
+        if (market && market.tokenUp) {
+          state.nextSlug = nextSlug;
+          state.nextConditionId = market.conditionId;
+          state.nextTokenUp = market.tokenUp;
+          state.nextTokenDown = market.tokenDown;
+          console.log(`[${coin}] Prefetched: ${nextSlug}`);
+        }
+      });
+    }
+  }
+}
+
+// Periodic upsert every 30s
+setInterval(async () => {
+  for (const coin of COINS) await upsertAggCoin(coin);
+}, 30000);
+
+async function main() {
+  console.log('[main] Starting multi-coin collector...');
+  const bucket = getCurrentBucket();
+  for (const coin of COINS) {
+    const slug = slugFromBucketCoin(bucket, coin);
+    const market = await getMarketDataCoin(slug);
+    if (market && market.tokenUp) connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
+    await new Promise(r => setTimeout(r, 500)); // small delay between coins
+  }
+  setInterval(checkAllMarkets, 5000);
 }
 
 main().catch(err => { console.error('[main] Fatal:', err); process.exit(1); });
