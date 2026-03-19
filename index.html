@@ -4,324 +4,311 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BTC/5MIN // POLYMARKET TRACKER</title>
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #080b0f;
-    --bg2: #0d1117;
-    --bg3: #111820;
-    --border: #1e2d3d;
-    --text: #c9d1d9;
-    --dim: #4a5568;
-    --up: #00e676;
-    --up-dim: #1a3a2a;
-    --down: #ff5252;
-    --down-dim: #3a1a1a;
-    --yellow: #ffd600;
-    --blue: #40c4ff;
-    --mono: 'Share Tech Mono', monospace;
-    --sans: 'Rajdhani', sans-serif;
-  }
+:root {
+  --bg: #f4f5f7;
+  --white: #ffffff;
+  --border: #d0d5dd;
+  --border2: #e4e7ec;
+  --text: #101828;
+  --dim: #667085;
+  --up: #027a48;
+  --up-bg: #ecfdf3;
+  --up-border: #a6f4c5;
+  --down: #b42318;
+  --down-bg: #fff4f2;
+  --down-border: #fecdca;
+  --live: #b54708;
+  --live-bg: #fffaeb;
+  --yellow: #f79009;
+  --blue: #1570ef;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 14px;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+}
 
-  /* HEADER */
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 20px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg2);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
+/* HEADER */
+.header {
+  background: var(--white);
+  border-bottom: 2px solid var(--border);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
 
-  .logo {
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--yellow);
-    letter-spacing: 2px;
-  }
+.logo {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 1px;
+}
 
-  .logo span { color: var(--dim); }
+.logo span { color: var(--dim); }
 
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    font-family: var(--mono);
-    font-size: 11px;
-  }
+.header-right { display: flex; align-items: center; gap: 8px; }
 
-  .live-dot {
-    width: 7px; height: 7px;
-    background: var(--up);
-    border-radius: 50%;
-    animation: pulse 1.5s infinite;
-    display: inline-block;
-    margin-right: 5px;
-  }
+.clock {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--dim);
+  margin-right: 8px;
+}
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
+.live-dot {
+  width: 7px; height: 7px;
+  background: #12b76a;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+  animation: pulse 1.5s infinite;
+}
 
-  .btn {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 5px 12px;
-    font-family: var(--mono);
-    font-size: 11px;
-    cursor: pointer;
-    letter-spacing: 1px;
-    transition: all 0.15s;
-  }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-  .btn:hover { border-color: var(--yellow); color: var(--yellow); }
-  .btn.active { border-color: var(--yellow); color: var(--yellow); }
+.btn {
+  padding: 6px 12px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--white);
+  color: var(--text);
+  transition: all 0.15s;
+}
+.btn:hover { background: var(--bg); }
+.btn-danger { border-color: #fda29b; color: var(--down); }
+.btn-danger:hover { background: var(--down-bg); }
 
-  /* LIVE PANEL */
-  .live-panel {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    border-bottom: 1px solid var(--border);
-  }
+/* LIVE PANEL */
+.live-panel {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg);
+}
 
-  .live-cell {
-    padding: 16px 20px;
-    border-right: 1px solid var(--border);
-  }
+.live-card {
+  background: var(--white);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
 
-  .live-cell:last-child { border-right: none; }
+.live-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
 
-  .live-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--dim);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
+.live-value {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+}
 
-  .live-value {
-    font-family: var(--mono);
-    font-size: 26px;
-    font-weight: bold;
-    color: var(--yellow);
-    line-height: 1;
-  }
+.live-value.up { color: var(--up); }
+.live-value.down { color: var(--down); }
+.live-value.timer { color: var(--yellow); }
+.live-value.elapsed { color: var(--blue); }
 
-  .live-value.up { color: var(--up); }
-  .live-value.down { color: var(--down); }
+.live-sub { font-size: 11px; color: var(--dim); margin-top: 2px; }
 
-  .live-sub {
-    font-size: 11px;
-    color: var(--dim);
-    margin-top: 3px;
-    font-family: var(--mono);
-  }
+.price-row { display: flex; align-items: center; gap: 8px; }
 
-  .price-bar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 4px;
-  }
+.price-bar-track {
+  flex:1; height:4px;
+  background: var(--down-bg);
+  border-radius: 2px;
+  border: 1px solid var(--down-border);
+  overflow: hidden;
+  margin-top: 6px;
+}
 
-  .price-bar-track {
-    flex: 1;
-    height: 3px;
-    background: var(--down);
-    border-radius: 2px;
-    overflow: hidden;
-  }
+.price-bar-fill { height:100%; background: var(--up); transition: width 0.5s; }
 
-  .price-bar-fill {
-    height: 100%;
-    background: var(--up);
-    transition: width 0.5s;
-  }
+/* STATS */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(5,1fr);
+  gap: 0;
+  background: var(--white);
+  border-top: 1px solid var(--border2);
+  border-bottom: 2px solid var(--border);
+}
 
-  /* STATS ROW */
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    border-bottom: 1px solid var(--border);
-    background: var(--bg2);
-  }
+.stat-cell {
+  padding: 10px 16px;
+  border-right: 1px solid var(--border2);
+}
+.stat-cell:last-child { border-right: none; }
 
-  .stat-cell {
-    padding: 12px 20px;
-    border-right: 1px solid var(--border);
-  }
+.stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 
-  .stat-cell:last-child { border-right: none; }
+.stat-value {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 2px;
+}
+.stat-value.up { color: var(--up); }
+.stat-value.down { color: var(--down); }
 
-  .stat-label {
-    font-size: 10px;
-    color: var(--dim);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-family: var(--mono);
-  }
+/* SECTION TITLE */
+.section-title {
+  padding: 8px 16px;
+  background: var(--bg);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border2);
+}
 
-  .stat-value {
-    font-family: var(--mono);
-    font-size: 20px;
-    color: var(--text);
-    margin-top: 2px;
-  }
+/* TABLE */
+.table-wrap { overflow-x: auto; }
 
-  .stat-value.up { color: var(--up); }
-  .stat-value.down { color: var(--down); }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--white);
+}
 
-  /* TABLE */
-  .table-wrap {
-    overflow-x: auto;
-    padding: 0 0 40px;
-  }
+thead { position: sticky; top: 45px; z-index: 10; }
 
-  .section-title {
-    padding: 10px 20px;
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--dim);
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+thead tr:first-child th {
+  background: #f9fafb;
+  border-bottom: 1px solid var(--border);
+  border-top: none;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--sans);
+  white-space: nowrap;
+}
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: var(--mono);
-    font-size: 12px;
-  }
+thead tr:last-child th {
+  background: #f9fafb;
+  border-bottom: 2px solid var(--border);
+  padding: 5px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--sans);
+  color: var(--dim);
+  white-space: nowrap;
+}
 
-  thead tr {
-    border-bottom: 1px solid var(--border);
-    background: var(--bg2);
-  }
+th.th-up { color: var(--up) !important; background: var(--up-bg) !important; border-left: 2px solid var(--up-border) !important; }
+th.th-down { color: var(--down) !important; background: var(--down-bg) !important; border-left: 2px solid var(--down-border) !important; }
+th.th-meta { color: var(--dim); }
 
-  th {
-    padding: 8px 10px;
-    text-align: center;
-    color: var(--dim);
-    font-size: 10px;
-    letter-spacing: 1px;
-    font-weight: 400;
-    white-space: nowrap;
-  }
+tbody tr {
+  border-bottom: 1px solid var(--border2);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+tbody tr:hover { background: #f9fafb; }
+tbody tr.selected { background: #fffaeb !important; outline: 2px solid var(--yellow); outline-offset: -2px; }
+tbody tr.live-row { background: var(--live-bg); }
 
-  th.left { text-align: left; }
+td {
+  padding: 5px 6px;
+  white-space: nowrap;
+  text-align: right;
+  border-right: 1px solid var(--border2);
+  font-size: 11px;
+}
+td:last-child { border-right: none; }
+td.left { text-align: left; }
 
-  .th-up { color: var(--up); background: rgba(0,230,118,0.04); }
-  .th-down { color: var(--down); background: rgba(255,82,82,0.04); }
+.td-up { background: rgba(236,253,243,0.5); color: var(--up); font-weight: 600; }
+.td-up-dim { background: rgba(236,253,243,0.3); color: #039855; }
+.td-down { background: rgba(255,244,242,0.5); color: var(--down); font-weight: 600; }
+.td-down-dim { background: rgba(255,244,242,0.3); color: #d92d20; }
+.td-time { color: var(--dim); font-size: 10px; }
+.td-meta { color: var(--text); font-weight: 600; }
+.td-period { color: var(--text); font-weight: 700; font-family: var(--sans); font-size: 12px; }
+.td-date { color: var(--dim); font-size: 11px; }
 
-  tbody tr {
-    border-bottom: 1px solid rgba(30,45,61,0.5);
-    transition: background 0.1s;
-  }
+/* minute cols separator */
+.m-sep { border-left: 1px dashed var(--border) !important; }
 
-  tbody tr:hover { background: var(--bg3); }
+.outcome-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--sans);
+  letter-spacing: 0.5px;
+}
+.badge-up { background: var(--up-bg); color: var(--up); border: 1px solid var(--up-border); }
+.badge-down { background: var(--down-bg); color: var(--down); border: 1px solid var(--down-border); }
+.badge-live { background: var(--live-bg); color: var(--live); border: 1px solid #fec84b; animation: pulse 1.5s infinite; }
 
-  tbody tr.live-row { background: rgba(255, 214, 0, 0.03); }
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 2px;
+  background: var(--white);
+}
 
-  td {
-    padding: 7px 10px;
-    text-align: center;
-    white-space: nowrap;
-  }
+.error-msg { padding: 20px; color: var(--down); font-family: var(--mono); font-size: 12px; }
 
-  td.left { text-align: left; }
-
-  .date-cell { color: var(--dim); font-size: 11px; }
-  .period-cell { color: var(--text); font-size: 12px; font-weight: 600; font-family: var(--sans); }
-
-  .price-up { color: var(--up); }
-  .price-down { color: var(--down); }
-  .price-dim { color: var(--dim); }
-  .time-cell { color: #5a7a9a; font-size: 11px; }
-
-  .outcome-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    font-size: 10px;
-    letter-spacing: 1px;
-    font-weight: 700;
-    border-radius: 2px;
-  }
-
-  .outcome-up { background: var(--up-dim); color: var(--up); border: 1px solid rgba(0,230,118,0.3); }
-  .outcome-down { background: var(--down-dim); color: var(--down); border: 1px solid rgba(255,82,82,0.3); }
-  .outcome-live { background: rgba(255,214,0,0.1); color: var(--yellow); border: 1px solid rgba(255,214,0,0.3); animation: pulse 1.5s infinite; }
-  .outcome-unknown { color: var(--dim); }
-
-  .up-col { background: rgba(0,230,118,0.02); }
-  .down-col { background: rgba(255,82,82,0.02); }
-
-  /* LOADING */
-  .loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-    font-family: var(--mono);
-    color: var(--dim);
-    font-size: 12px;
-    letter-spacing: 2px;
-  }
-
-  .error-msg {
-    padding: 20px;
-    color: var(--down);
-    font-family: var(--mono);
-    font-size: 12px;
-  }
-
-  /* TIMER */
-  #timer { color: var(--yellow); }
-  #elapsed { color: var(--blue); }
-
-  /* SELECTED ROW */
-  tbody tr.selected { background: rgba(255,214,0,0.08) !important; outline: 1px solid rgba(255,214,0,0.4); }
-  tbody tr { cursor: pointer; }
-
-  /* DELETE BTN */
-  .btn-danger { border-color: var(--down); color: var(--down); }
-  .btn-danger:hover { background: rgba(255,82,82,0.1); }
-
-  /* CONFIRM MODAL */
-  .modal-overlay {
-    display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.7); z-index: 1000;
-    align-items: center; justify-content: center;
-  }
-  .modal-overlay.show { display: flex; }
-  .modal {
-    background: #0d1117; border: 1px solid var(--border);
-    padding: 24px 32px; font-family: var(--mono);
-    min-width: 320px; text-align: center;
-  }
-  .modal h3 { color: var(--yellow); margin-bottom: 12px; font-size: 13px; letter-spacing: 2px; }
-  .modal p { color: var(--text); font-size: 12px; margin-bottom: 20px; }
-  .modal-btns { display: flex; gap: 10px; justify-content: center; }
+/* MODAL */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(16,24,40,0.5); z-index: 1000;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 28px;
+  min-width: 340px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+.modal h3 { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+.modal p { font-size: 13px; color: var(--dim); margin-bottom: 20px; }
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
 </style>
 </head>
 <body>
@@ -329,67 +316,52 @@
 <div class="header">
   <div class="logo">BTC<span>/</span>5MIN <span>//</span> POLYMARKET TRACKER</div>
   <div class="header-right">
-    <span><span class="live-dot"></span><span id="live-time">—</span> UTC</span>
-    <button class="btn" onclick="loadData()">⟳ REFRESH</button>
+    <span class="clock"><span class="live-dot"></span><span id="live-time">—</span> UTC</span>
+    <button class="btn" onclick="loadData()">⟳ Refresh</button>
     <button class="btn" onclick="exportCSV()">↓ CSV</button>
-    <button class="btn btn-danger" onclick="confirmClearSelected()" id="btn-del-row" style="display:none">✕ УДАЛИТЬ СТРОКУ</button>
-    <button class="btn btn-danger" onclick="confirmClearAll()">⊘ ОЧИСТИТЬ ВСЁ</button>
+    <button class="btn btn-danger" id="btn-del-row" style="display:none" onclick="confirmClearSelected()">✕ Удалить строку</button>
+    <button class="btn btn-danger" onclick="confirmClearAll()">⊘ Очистить всё</button>
   </div>
 </div>
 
 <div class="live-panel">
-  <div class="live-cell">
+  <div class="live-card">
     <div class="live-label">Текущий маркет</div>
     <div class="live-value" id="market-label">—</div>
     <div class="live-sub" id="market-date">—</div>
   </div>
-  <div class="live-cell">
+  <div class="live-card">
     <div class="live-label">LIVE UP / DOWN</div>
-    <div class="price-bar">
+    <div class="price-row">
       <span class="live-value up" id="live-up">—</span>
-      <span style="color:var(--dim);font-family:var(--mono);font-size:14px">vs</span>
+      <span style="color:var(--dim);font-size:13px">vs</span>
       <span class="live-value down" id="live-down">—</span>
     </div>
     <div class="price-bar-track"><div class="price-bar-fill" id="price-bar" style="width:50%"></div></div>
   </div>
-  <div class="live-cell">
+  <div class="live-card">
     <div class="live-label">Осталось</div>
-    <div class="live-value" id="timer">—</div>
+    <div class="live-value timer" id="timer">—</div>
     <div class="live-sub">из 5:00 минут</div>
   </div>
-  <div class="live-cell">
+  <div class="live-card">
     <div class="live-label">Прошло от старта</div>
-    <div class="live-value" id="elapsed">—</div>
+    <div class="live-value elapsed" id="elapsed">—</div>
     <div class="live-sub">активен</div>
   </div>
 </div>
 
 <div class="stats-row">
-  <div class="stat-cell">
-    <div class="stat-label">Маркетов записано</div>
-    <div class="stat-value" id="stat-total">—</div>
-  </div>
-  <div class="stat-cell">
-    <div class="stat-label">UP победил</div>
-    <div class="stat-value up" id="stat-up">—</div>
-  </div>
-  <div class="stat-cell">
-    <div class="stat-label">DOWN победил</div>
-    <div class="stat-value down" id="stat-down">—</div>
-  </div>
-  <div class="stat-cell">
-    <div class="stat-label">UP min &lt; 20¢</div>
-    <div class="stat-value" id="stat-up20">—</div>
-  </div>
-  <div class="stat-cell">
-    <div class="stat-label">% UP выиграл (конверсия)</div>
-    <div class="stat-value" id="stat-conv">—</div>
-  </div>
+  <div class="stat-cell"><div class="stat-label">Маркетов записано</div><div class="stat-value" id="stat-total">—</div></div>
+  <div class="stat-cell"><div class="stat-label">UP победил</div><div class="stat-value up" id="stat-up">—</div></div>
+  <div class="stat-cell"><div class="stat-label">DOWN победил</div><div class="stat-value down" id="stat-down">—</div></div>
+  <div class="stat-cell"><div class="stat-label">UP min &lt; 20¢</div><div class="stat-value" id="stat-up20">—</div></div>
+  <div class="stat-cell"><div class="stat-label">% UP выиграл</div><div class="stat-value" id="stat-conv">—</div></div>
 </div>
 
 <div class="section-title">
   <span>История маркетов — полная 5-минутная свеча</span>
-  <span id="table-count" style="color:var(--dim)"></span>
+  <span id="table-count"></span>
 </div>
 
 <div class="table-wrap">
@@ -398,110 +370,103 @@
   <table id="main-table" style="display:none">
     <thead>
       <tr>
-        <th class="left" rowspan="2">ДАТА UTC</th>
-        <th class="left" rowspan="2">ПЕРИОД</th>
-        <th colspan="5" class="th-up">▲ UP</th>
-        <th colspan="5" class="th-down">▼ DOWN</th>
-        <th rowspan="2">ИСХОД</th>
+        <th class="th-meta" rowspan="2">ДАТА</th>
+        <th class="th-meta" rowspan="2">ПЕРИОД</th>
+        <th class="th-up" colspan="12">▲ UP</th>
+        <th class="th-down" colspan="12">▼ DOWN</th>
+        <th class="th-meta" rowspan="2">ИСХОД</th>
       </tr>
       <tr>
         <th class="th-up">СТАРТ</th>
-        <th class="th-up">MIN ¢</th>
-        <th class="th-up">@ М:СС</th>
-        <th class="th-up">MAX ¢</th>
-        <th class="th-up">@ М:СС</th>
+        <th class="th-up">MIN</th><th class="th-up">@М:СС</th>
+        <th class="th-up">MAX</th><th class="th-up">@М:СС</th>
+        <th class="th-up m-sep">М1↓</th><th class="th-up">М1↑</th>
+        <th class="th-up m-sep">М2↓</th><th class="th-up">М2↑</th>
+        <th class="th-up m-sep">М3↓</th><th class="th-up">М3↑</th>
+        <th class="th-up m-sep">М4↓</th><th class="th-up">М4↑</th>
+        <th class="th-up m-sep">М5↓</th><th class="th-up">М5↑</th>
         <th class="th-down">СТАРТ</th>
-        <th class="th-down">MIN ¢</th>
-        <th class="th-down">@ М:СС</th>
-        <th class="th-down">MAX ¢</th>
-        <th class="th-down">@ М:СС</th>
+        <th class="th-down">MIN</th><th class="th-down">@М:СС</th>
+        <th class="th-down">MAX</th><th class="th-down">@М:СС</th>
+        <th class="th-down m-sep">М1↓</th><th class="th-down">М1↑</th>
+        <th class="th-down m-sep">М2↓</th><th class="th-down">М2↑</th>
+        <th class="th-down m-sep">М3↓</th><th class="th-down">М3↑</th>
+        <th class="th-down m-sep">М4↓</th><th class="th-down">М4↑</th>
+        <th class="th-down m-sep">М5↓</th><th class="th-down">М5↑</th>
       </tr>
     </thead>
     <tbody id="table-body"></tbody>
   </table>
 </div>
 
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Подтверждение</h3>
+    <p id="modal-text"></p>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-danger" id="modal-confirm">Удалить</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let liveData = null;
-let timerInterval = null;
+let selectedSlug = null;
 
-function fmt(price) {
-  if (price === null || price === undefined) return '—';
-  return Math.round(price * 100);
+function fmt(v) {
+  if (v === null || v === undefined) return '—';
+  return Math.round(parseFloat(v) * 100);
 }
 
 function fmtTime(secs) {
   if (secs === null || secs === undefined) return '—';
-  const m = Math.floor(Math.abs(secs) / 60);
-  const s = Math.floor(Math.abs(secs) % 60);
-  return `${m}:${String(s).padStart(2,'0')}`;
+  const s = Math.abs(parseFloat(secs));
+  return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
 }
 
 function fmtDate(ts) {
   const d = new Date(ts * 1000);
-  const dd = String(d.getUTCDate()).padStart(2,'0');
-  const mm = String(d.getUTCMonth()+1).padStart(2,'0');
-  return `${dd}.${mm}`;
+  return `${String(d.getUTCDate()).padStart(2,'0')}.${String(d.getUTCMonth()+1).padStart(2,'0')}`;
 }
 
 function fmtPeriod(ts) {
-  const start = new Date(ts * 1000);
-  const end = new Date((ts + 300) * 1000);
-  const hh1 = String(start.getUTCHours()).padStart(2,'0');
-  const mm1 = String(start.getUTCMinutes()).padStart(2,'0');
-  const hh2 = String(end.getUTCHours()).padStart(2,'0');
-  const mm2 = String(end.getUTCMinutes()).padStart(2,'0');
-  return `${hh1}:${mm1}–${hh2}:${mm2}`;
-}
-
-function getCurrentMarketTs() {
-  return Math.floor(Date.now() / 1000 / 300) * 300;
+  const s = new Date(ts*1000), e = new Date((ts+300)*1000);
+  const p = t => `${String(t.getUTCHours()).padStart(2,'0')}:${String(t.getUTCMinutes()).padStart(2,'0')}`;
+  return `${p(s)}–${p(e)}`;
 }
 
 function updateClock() {
   const now = new Date();
-  const hh = String(now.getUTCHours()).padStart(2,'0');
-  const mm = String(now.getUTCMinutes()).padStart(2,'0');
-  const ss = String(now.getUTCSeconds()).padStart(2,'0');
-  document.getElementById('live-time').textContent = `${hh}:${mm}:${ss}`;
-
-  const nowSec = Math.floor(Date.now() / 1000);
-  const bucketStart = Math.floor(nowSec / 300) * 300;
-  const elapsed = nowSec - bucketStart;
+  document.getElementById('live-time').textContent =
+    `${String(now.getUTCHours()).padStart(2,'0')}:${String(now.getUTCMinutes()).padStart(2,'0')}:${String(now.getUTCSeconds()).padStart(2,'0')}`;
+  const nowSec = Math.floor(Date.now()/1000);
+  const bucket = Math.floor(nowSec/300)*300;
+  const elapsed = nowSec - bucket;
   const remaining = 300 - elapsed;
-
-  const rm = Math.floor(remaining / 60);
-  const rs = remaining % 60;
-  document.getElementById('timer').textContent = `${rm}:${String(rs).padStart(2,'0')}`;
+  document.getElementById('timer').textContent = `${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,'0')}`;
   document.getElementById('elapsed').textContent = fmtTime(elapsed);
 
-  // Update live prices from current market data
-  if (liveData && liveData.length > 0) {
-    const current = liveData.find(m => m.market_start === bucketStart);
-    if (current) {
-      const upPrice = current.up_max !== null ? fmt(current.up_max) : '—';
-      const downPrice = current.down_max !== null ? fmt(current.down_max) : '—';
-      document.getElementById('live-up').textContent = upPrice !== '—' ? upPrice + '¢' : '—';
-      document.getElementById('live-down').textContent = downPrice !== '—' ? downPrice + '¢' : '—';
-      if (current.up_max !== null && current.down_max !== null) {
-        const upPct = current.up_max * 100;
-        document.getElementById('price-bar').style.width = upPct + '%';
-      }
+  if (liveData) {
+    const cur = liveData.find(m => parseInt(m.market_start) === bucket);
+    if (cur) {
+      const up = cur.up_max !== null ? fmt(cur.up_max)+'¢' : '—';
+      const dn = cur.down_max !== null ? fmt(cur.down_max)+'¢' : '—';
+      document.getElementById('live-up').textContent = up;
+      document.getElementById('live-down').textContent = dn;
+      if (cur.up_max) document.getElementById('price-bar').style.width = (parseFloat(cur.up_max)*100)+'%';
     }
   }
 }
 
 async function loadData() {
-  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('loading').style.display = 'block';
   document.getElementById('main-table').style.display = 'none';
   document.getElementById('error').style.display = 'none';
-
   try {
     const res = await fetch('/api/data');
     const data = await res.json();
-
     if (!Array.isArray(data)) throw new Error(data.error || 'Bad response');
-
     liveData = data;
     renderTable(data);
   } catch(err) {
@@ -512,79 +477,74 @@ async function loadData() {
 }
 
 function renderTable(data) {
-  const now = Math.floor(Date.now() / 1000);
-  const currentBucket = Math.floor(now / 300) * 300;
+  const now = Math.floor(Date.now()/1000);
+  const bucket = Math.floor(now/300)*300;
 
-  // Current market label
-  const hh1 = String(new Date(currentBucket*1000).getUTCHours()).padStart(2,'0');
-  const mm1 = String(new Date(currentBucket*1000).getUTCMinutes()).padStart(2,'0');
-  const hh2 = String(new Date((currentBucket+300)*1000).getUTCHours()).padStart(2,'0');
-  const mm2 = String(new Date((currentBucket+300)*1000).getUTCMinutes()).padStart(2,'0');
-  document.getElementById('market-label').textContent = `${hh1}:${mm1}–${hh2}:${mm2} UTC`;
-  const d = new Date(currentBucket*1000);
-  document.getElementById('market-date').textContent =
-    `${String(d.getUTCDate()).padStart(2,'0')}.${String(d.getUTCMonth()+1).padStart(2,'0')} ${hh1}:${mm1}`;
+  const s = new Date(bucket*1000), e = new Date((bucket+300)*1000);
+  const p = t => `${String(t.getUTCHours()).padStart(2,'0')}:${String(t.getUTCMinutes()).padStart(2,'0')}`;
+  document.getElementById('market-label').textContent = `${p(s)}–${p(e)} UTC`;
+  document.getElementById('market-date').textContent = `${String(s.getUTCDate()).padStart(2,'0')}.${String(s.getUTCMonth()+1).padStart(2,'0')} ${p(s)}`;
 
-  // Stats
   const closed = data.filter(m => m.outcome);
-  const upWins = closed.filter(m => m.outcome === 'UP').length;
-  const downWins = closed.filter(m => m.outcome === 'DOWN').length;
-  const upLow = closed.filter(m => m.outcome === 'UP' && m.up_min !== null && m.up_min < 0.20).length;
-  const conv = closed.length > 0 ? Math.round(upWins / closed.length * 100) : 0;
+  const upW = closed.filter(m => m.outcome === 'UP').length;
+  const dnW = closed.filter(m => m.outcome === 'DOWN').length;
+  const up20 = closed.filter(m => m.outcome === 'UP' && m.up_min && parseFloat(m.up_min) < 0.20).length;
+  const conv = closed.length > 0 ? Math.round(upW/closed.length*100) : 0;
 
   document.getElementById('stat-total').textContent = data.length;
-  document.getElementById('stat-up').textContent = upWins;
-  document.getElementById('stat-down').textContent = downWins;
-  document.getElementById('stat-up20').textContent = upLow;
+  document.getElementById('stat-up').textContent = upW;
+  document.getElementById('stat-down').textContent = dnW;
+  document.getElementById('stat-up20').textContent = up20;
   document.getElementById('stat-conv').textContent = conv + '%';
 
-  // Table
   const tbody = document.getElementById('table-body');
   tbody.innerHTML = '';
 
-  let count = 0;
   for (const m of data) {
-    const isLive = m.market_start === currentBucket;
+    const isLive = parseInt(m.market_start) === bucket;
     const tr = document.createElement('tr');
     if (isLive) tr.className = 'live-row';
     tr.dataset.slug = m.slug;
     tr.addEventListener('click', () => selectRow(tr, m.slug));
 
-    let outcomeHtml = '<span class="outcome-unknown">—</span>';
-    if (isLive) {
-      outcomeHtml = '<span class="outcome-badge outcome-live">LIVE</span>';
-    } else if (m.outcome === 'UP') {
-      outcomeHtml = '<span class="outcome-badge outcome-up">UP</span>';
-    } else if (m.outcome === 'DOWN') {
-      outcomeHtml = '<span class="outcome-badge outcome-down">DOWN</span>';
-    }
+    let badge = '<span class="outcome-badge" style="color:var(--dim)">—</span>';
+    if (isLive) badge = '<span class="outcome-badge badge-live">LIVE</span>';
+    else if (m.outcome === 'UP') badge = '<span class="outcome-badge badge-up">UP</span>';
+    else if (m.outcome === 'DOWN') badge = '<span class="outcome-badge badge-down">DOWN</span>';
+
+    const u = (v, cls='td-up') => `<td class="${cls}">${fmt(v)}</td>`;
+    const d = (v, cls='td-down') => `<td class="${cls}">${fmt(v)}</td>`;
+    const t = (v) => `<td class="td-time">${fmtTime(v)}</td>`;
+    const ms = 'm-sep ';
 
     tr.innerHTML = `
-      <td class="left date-cell">${fmtDate(m.market_start)}</td>
-      <td class="left period-cell">${fmtPeriod(m.market_start)}</td>
-      <td class="up-col price-up">${fmt(m.up_start)}</td>
-      <td class="up-col price-up" style="font-weight:bold">${fmt(m.up_min)}</td>
-      <td class="up-col time-cell">${fmtTime(m.up_min_time)}</td>
-      <td class="up-col price-up" style="font-weight:bold">${fmt(m.up_max)}</td>
-      <td class="up-col time-cell">${fmtTime(m.up_max_time)}</td>
-      <td class="down-col price-down">${fmt(m.down_start)}</td>
-      <td class="down-col price-down" style="font-weight:bold">${fmt(m.down_min)}</td>
-      <td class="down-col time-cell">${fmtTime(m.down_min_time)}</td>
-      <td class="down-col price-down" style="font-weight:bold">${fmt(m.down_max)}</td>
-      <td class="down-col time-cell">${fmtTime(m.down_max_time)}</td>
-      <td>${outcomeHtml}</td>
+      <td class="td-date left">${fmtDate(m.market_start)}</td>
+      <td class="td-period left">${fmtPeriod(m.market_start)}</td>
+      ${u(m.up_start)}
+      ${u(m.up_min)} ${t(m.up_min_time)}
+      ${u(m.up_max)} ${t(m.up_max_time)}
+      <td class="td-up-dim m-sep">${fmt(m.up_min_m1)}</td><td class="td-up-dim">${fmt(m.up_max_m1)}</td>
+      <td class="td-up-dim m-sep">${fmt(m.up_min_m2)}</td><td class="td-up-dim">${fmt(m.up_max_m2)}</td>
+      <td class="td-up-dim m-sep">${fmt(m.up_min_m3)}</td><td class="td-up-dim">${fmt(m.up_max_m3)}</td>
+      <td class="td-up-dim m-sep">${fmt(m.up_min_m4)}</td><td class="td-up-dim">${fmt(m.up_max_m4)}</td>
+      <td class="td-up-dim m-sep">${fmt(m.up_min_m5)}</td><td class="td-up-dim">${fmt(m.up_max_m5)}</td>
+      ${d(m.down_start)}
+      ${d(m.down_min)} ${t(m.down_min_time)}
+      ${d(m.down_max)} ${t(m.down_max_time)}
+      <td class="td-down-dim m-sep">${fmt(m.down_min_m1)}</td><td class="td-down-dim">${fmt(m.down_max_m1)}</td>
+      <td class="td-down-dim m-sep">${fmt(m.down_min_m2)}</td><td class="td-down-dim">${fmt(m.down_max_m2)}</td>
+      <td class="td-down-dim m-sep">${fmt(m.down_min_m3)}</td><td class="td-down-dim">${fmt(m.down_max_m3)}</td>
+      <td class="td-down-dim m-sep">${fmt(m.down_min_m4)}</td><td class="td-down-dim">${fmt(m.down_max_m4)}</td>
+      <td class="td-down-dim m-sep">${fmt(m.down_min_m5)}</td><td class="td-down-dim">${fmt(m.down_max_m5)}</td>
+      <td style="text-align:center">${badge}</td>
     `;
     tbody.appendChild(tr);
-    count++;
   }
 
-  document.getElementById('table-count').textContent = `↑ ${count} из ${data.length} маркетов`;
+  document.getElementById('table-count').textContent = `↑ ${data.length} маркетов`;
   document.getElementById('loading').style.display = 'none';
   document.getElementById('main-table').style.display = 'table';
 }
-
-// --- SELECTION ---
-let selectedSlug = null;
 
 function selectRow(tr, slug) {
   document.querySelectorAll('tbody tr.selected').forEach(r => r.classList.remove('selected'));
@@ -598,87 +558,72 @@ function selectRow(tr, slug) {
   }
 }
 
-// --- CSV EXPORT ---
 function exportCSV() {
   if (!liveData || !liveData.length) return;
-  const headers = ['Дата UTC','Период','UP Старт','UP Min','UP Min Time','UP Max','UP Max Time','DOWN Старт','DOWN Min','DOWN Min Time','DOWN Max','DOWN Max Time','Исход'];
+  const h = ['Дата','Период','UP Старт','UP Min','UP Min Time','UP Max','UP Max Time',
+    'UP M1↓','UP M1↑','UP M2↓','UP M2↑','UP M3↓','UP M3↑','UP M4↓','UP M4↑','UP M5↓','UP M5↑',
+    'DN Старт','DN Min','DN Min Time','DN Max','DN Max Time',
+    'DN M1↓','DN M1↑','DN M2↓','DN M2↑','DN M3↓','DN M3↑','DN M4↓','DN M4↑','DN M5↓','DN M5↑','Исход'];
   const rows = liveData.map(m => [
-    fmtDate(m.market_start),
-    fmtPeriod(m.market_start),
-    fmt(m.up_start), fmt(m.up_min), fmtTime(m.up_min_time),
-    fmt(m.up_max), fmtTime(m.up_max_time),
-    fmt(m.down_start), fmt(m.down_min), fmtTime(m.down_min_time),
-    fmt(m.down_max), fmtTime(m.down_max_time),
-    m.outcome || '—'
+    fmtDate(m.market_start), fmtPeriod(m.market_start),
+    fmt(m.up_start), fmt(m.up_min), fmtTime(m.up_min_time), fmt(m.up_max), fmtTime(m.up_max_time),
+    fmt(m.up_min_m1), fmt(m.up_max_m1), fmt(m.up_min_m2), fmt(m.up_max_m2),
+    fmt(m.up_min_m3), fmt(m.up_max_m3), fmt(m.up_min_m4), fmt(m.up_max_m4),
+    fmt(m.up_min_m5), fmt(m.up_max_m5),
+    fmt(m.down_start), fmt(m.down_min), fmtTime(m.down_min_time), fmt(m.down_max), fmtTime(m.down_max_time),
+    fmt(m.down_min_m1), fmt(m.down_max_m1), fmt(m.down_min_m2), fmt(m.down_max_m2),
+    fmt(m.down_min_m3), fmt(m.down_max_m3), fmt(m.down_min_m4), fmt(m.down_max_m4),
+    fmt(m.down_min_m5), fmt(m.down_max_m5), m.outcome || '—'
   ]);
-  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-  const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+  const csv = [h,...rows].map(r=>r.join(',')).join('\n');
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
   a.download = `btc5min_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 }
 
-// --- MODAL ---
-let modalAction = null;
-
 function confirmClearAll() {
-  document.getElementById('modal-title').textContent = 'ОЧИСТИТЬ ВСЕ ДАННЫЕ';
-  document.getElementById('modal-text').textContent = 'Удалить все маркеты из таблицы markets_agg? Это действие необратимо.';
+  document.getElementById('modal-title').textContent = 'Очистить все данные';
+  document.getElementById('modal-text').textContent = 'Удалить все маркеты из таблицы? Это действие необратимо.';
   document.getElementById('modal-confirm').onclick = clearAll;
   document.getElementById('modal').classList.add('show');
 }
 
 function confirmClearSelected() {
   if (!selectedSlug) return;
-  document.getElementById('modal-title').textContent = 'УДАЛИТЬ МАРКЕТ';
-  document.getElementById('modal-text').textContent = `Удалить маркет ${selectedSlug}?`;
+  document.getElementById('modal-title').textContent = 'Удалить маркет';
+  document.getElementById('modal-text').textContent = `Удалить ${selectedSlug}?`;
   document.getElementById('modal-confirm').onclick = clearSelected;
   document.getElementById('modal').classList.add('show');
 }
 
-function closeModal() {
-  document.getElementById('modal').classList.remove('show');
-}
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
 
 async function clearAll() {
   closeModal();
   try {
-    const res = await fetch('/api/clear', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({all: true}) });
-    const data = await res.json();
-    if (data.ok) { selectedSlug = null; document.getElementById('btn-del-row').style.display = 'none'; loadData(); }
-    else alert('Ошибка: ' + data.error);
-  } catch(e) { alert('Ошибка: ' + e.message); }
+    const r = await fetch('/api/clear', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({all:true})});
+    const d = await r.json();
+    if (d.ok) { selectedSlug=null; document.getElementById('btn-del-row').style.display='none'; loadData(); }
+    else alert('Ошибка: '+d.error);
+  } catch(e) { alert('Ошибка: '+e.message); }
 }
 
 async function clearSelected() {
   closeModal();
   if (!selectedSlug) return;
   try {
-    const res = await fetch('/api/clear', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({slug: selectedSlug}) });
-    const data = await res.json();
-    if (data.ok) { selectedSlug = null; document.getElementById('btn-del-row').style.display = 'none'; loadData(); }
-    else alert('Ошибка: ' + data.error);
-  } catch(e) { alert('Ошибка: ' + e.message); }
+    const r = await fetch('/api/clear', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug:selectedSlug})});
+    const d = await r.json();
+    if (d.ok) { selectedSlug=null; document.getElementById('btn-del-row').style.display='none'; loadData(); }
+    else alert('Ошибка: '+d.error);
+  } catch(e) { alert('Ошибка: '+e.message); }
 }
 
-// Init
 setInterval(updateClock, 1000);
 updateClock();
 loadData();
-// Auto-refresh every 5 minutes
-setInterval(loadData, 5 * 60 * 1000);
+setInterval(loadData, 5*60*1000);
 </script>
-<!-- MODAL -->
-<div class="modal-overlay" id="modal">
-  <div class="modal">
-    <h3 id="modal-title">ПОДТВЕРЖДЕНИЕ</h3>
-    <p id="modal-text"></p>
-    <div class="modal-btns">
-      <button class="btn btn-danger" id="modal-confirm">ДА, УДАЛИТЬ</button>
-      <button class="btn" onclick="closeModal()">ОТМЕНА</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
