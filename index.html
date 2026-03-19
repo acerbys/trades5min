@@ -213,8 +213,8 @@ thead tr:first-child th {
   background: #f9fafb;
   border-bottom: 1px solid var(--border);
   border-top: none;
-  padding: 6px 8px;
-  font-size: 11px;
+  padding: 5px 4px;
+  font-size: 10px;
   font-weight: 700;
   font-family: var(--sans);
   white-space: nowrap;
@@ -223,8 +223,8 @@ thead tr:first-child th {
 thead tr:last-child th {
   background: #f9fafb;
   border-bottom: 2px solid var(--border);
-  padding: 5px 6px;
-  font-size: 10px;
+  padding: 4px 3px;
+  font-size: 9px;
   font-weight: 700;
   font-family: var(--sans);
   color: var(--dim);
@@ -232,6 +232,7 @@ thead tr:last-child th {
 }
 
 th.th-up { color: var(--up) !important; background: var(--up-bg) !important; border-left: 2px solid var(--up-border) !important; }
+th.th-start { color: #1570ef !important; background: #eff8ff !important; border-left: 2px solid #b2ddff !important; font-weight: 700 !important; }
 th.th-down { color: var(--down) !important; background: var(--down-bg) !important; border-left: 2px solid var(--down-border) !important; }
 th.th-meta { color: var(--dim); }
 
@@ -245,7 +246,7 @@ tbody tr.selected { background: #fffaeb !important; outline: 2px solid var(--yel
 tbody tr.live-row { background: var(--live-bg); }
 
 td {
-  padding: 5px 6px;
+  padding: 4px 4px;
   white-space: nowrap;
   text-align: right;
   border-right: 1px solid var(--border2);
@@ -258,6 +259,7 @@ td.left { text-align: left; }
 .td-up-dim { background: rgba(236,253,243,0.3); color: #039855; }
 .td-down { background: rgba(255,244,242,0.5); color: var(--down); font-weight: 600; }
 .td-down-dim { background: rgba(255,244,242,0.3); color: #d92d20; }
+.td-start { background: #eff8ff; color: #1570ef; font-weight: 700; border-left: 2px solid #b2ddff !important; }
 .td-time { color: var(--dim); font-size: 10px; }
 .td-meta { color: var(--text); font-weight: 600; }
 .td-period { color: var(--text); font-weight: 700; font-family: var(--sans); font-size: 12px; }
@@ -377,22 +379,22 @@ td.left { text-align: left; }
         <th class="th-meta" rowspan="2">ИСХОД</th>
       </tr>
       <tr>
-        <th class="th-up">СТАРТ</th>
+        <th class="th-start">СТАРТ</th>
         <th class="th-up">MIN</th><th class="th-up">@М:СС</th>
         <th class="th-up">MAX</th><th class="th-up">@М:СС</th>
-        <th class="th-up m-sep">М1↓</th><th class="th-up">М1↑</th>
-        <th class="th-up m-sep">М2↓</th><th class="th-up">М2↑</th>
-        <th class="th-up m-sep">М3↓</th><th class="th-up">М3↑</th>
-        <th class="th-up m-sep">М4↓</th><th class="th-up">М4↑</th>
-        <th class="th-up m-sep">М5↓</th><th class="th-up">М5↑</th>
-        <th class="th-down">СТАРТ</th>
+        <th class="th-up m-sep" style="color:#7a0000">М1▼</th><th class="th-up" style="color:#014737">М1▲</th>
+        <th class="th-up m-sep" style="color:#7a0000">М2▼</th><th class="th-up" style="color:#014737">М2▲</th>
+        <th class="th-up m-sep" style="color:#7a0000">М3▼</th><th class="th-up" style="color:#014737">М3▲</th>
+        <th class="th-up m-sep" style="color:#7a0000">М4▼</th><th class="th-up" style="color:#014737">М4▲</th>
+        <th class="th-up m-sep" style="color:#7a0000">М5▼</th><th class="th-up" style="color:#014737">М5▲</th>
+        <th class="th-start">СТАРТ</th>
         <th class="th-down">MIN</th><th class="th-down">@М:СС</th>
         <th class="th-down">MAX</th><th class="th-down">@М:СС</th>
-        <th class="th-down m-sep">М1↓</th><th class="th-down">М1↑</th>
-        <th class="th-down m-sep">М2↓</th><th class="th-down">М2↑</th>
-        <th class="th-down m-sep">М3↓</th><th class="th-down">М3↑</th>
-        <th class="th-down m-sep">М4↓</th><th class="th-down">М4↑</th>
-        <th class="th-down m-sep">М5↓</th><th class="th-down">М5↑</th>
+        <th class="th-down m-sep" style="color:#7a0000">М1▼</th><th class="th-down" style="color:#014737">М1▲</th>
+        <th class="th-down m-sep" style="color:#7a0000">М2▼</th><th class="th-down" style="color:#014737">М2▲</th>
+        <th class="th-down m-sep" style="color:#7a0000">М3▼</th><th class="th-down" style="color:#014737">М3▲</th>
+        <th class="th-down m-sep" style="color:#7a0000">М4▼</th><th class="th-down" style="color:#014737">М4▲</th>
+        <th class="th-down m-sep" style="color:#7a0000">М5▼</th><th class="th-down" style="color:#014737">М5▲</th>
       </tr>
     </thead>
     <tbody id="table-body"></tbody>
@@ -426,12 +428,13 @@ function fmtTime(secs) {
 }
 
 function fmtDate(ts) {
-  const d = new Date(ts * 1000);
+  const d = new Date(parseInt(ts) * 1000);
   return `${String(d.getUTCDate()).padStart(2,'0')}.${String(d.getUTCMonth()+1).padStart(2,'0')}`;
 }
 
 function fmtPeriod(ts) {
-  const s = new Date(ts*1000), e = new Date((ts+300)*1000);
+  const tsNum = parseInt(ts);
+  const s = new Date(tsNum*1000), e = new Date((tsNum+300)*1000);
   const p = t => `${String(t.getUTCHours()).padStart(2,'0')}:${String(t.getUTCMinutes()).padStart(2,'0')}`;
   return `${p(s)}–${p(e)}`;
 }
@@ -520,7 +523,7 @@ function renderTable(data) {
     tr.innerHTML = `
       <td class="td-date left">${fmtDate(m.market_start)}</td>
       <td class="td-period left">${fmtPeriod(m.market_start)}</td>
-      ${u(m.up_start)}
+      <td class="td-start">${fmt(m.up_start)}</td>
       ${u(m.up_min)} ${t(m.up_min_time)}
       ${u(m.up_max)} ${t(m.up_max_time)}
       <td class="td-up-dim m-sep">${fmt(m.up_min_m1)}</td><td class="td-up-dim">${fmt(m.up_max_m1)}</td>
@@ -528,7 +531,7 @@ function renderTable(data) {
       <td class="td-up-dim m-sep">${fmt(m.up_min_m3)}</td><td class="td-up-dim">${fmt(m.up_max_m3)}</td>
       <td class="td-up-dim m-sep">${fmt(m.up_min_m4)}</td><td class="td-up-dim">${fmt(m.up_max_m4)}</td>
       <td class="td-up-dim m-sep">${fmt(m.up_min_m5)}</td><td class="td-up-dim">${fmt(m.up_max_m5)}</td>
-      ${d(m.down_start)}
+      <td class="td-start">${fmt(m.down_start)}</td>
       ${d(m.down_min)} ${t(m.down_min_time)}
       ${d(m.down_max)} ${t(m.down_max_time)}
       <td class="td-down-dim m-sep">${fmt(m.down_min_m1)}</td><td class="td-down-dim">${fmt(m.down_max_m1)}</td>
