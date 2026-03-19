@@ -381,25 +381,35 @@ td.left { text-align: left; }
         <th class="th-meta col-period" rowspan="2">ПЕРИОД</th>
         <th class="th-up" colspan="12">▲ UP</th>
         <th class="th-down" colspan="12">▼ DOWN</th>
-        <th class="th-meta" rowspan="2" style="min-width:52px">ИСХОД</th>
+        <th class="th-meta" rowspan="2" style="min-width:52px;position:sticky;right:0;background:#f9fafb;z-index:2">ИСХОД</th>
       </tr>
       <tr>
         <th class="th-start">СТАРТ</th>
         <th class="th-up">MIN</th><th class="th-up">@М:СС</th>
         <th class="th-up">MAX</th><th class="th-up">@М:СС</th>
-        <th class="th-up m-sep" style="color:#7a0000">М1▼</th><th class="th-up" style="color:#014737">М1▲</th>
-        <th class="th-up m-sep" style="color:#7a0000">М2▼</th><th class="th-up" style="color:#014737">М2▲</th>
-        <th class="th-up m-sep" style="color:#7a0000">М3▼</th><th class="th-up" style="color:#014737">М3▲</th>
-        <th class="th-up m-sep" style="color:#7a0000">М4▼</th><th class="th-up" style="color:#014737">М4▲</th>
-        <th class="th-up m-sep" style="color:#7a0000">М5▼</th><th class="th-up" style="color:#014737">М5▲</th>
+        <th style="background:#ecfdf3;border-left:1px dashed #d0d5dd;color:#7a0000;font-weight:700;font-size:9px;padding:4px 3px">М1▼</th>
+        <th style="background:#ecfdf3;color:#014737;font-weight:700;font-size:9px;padding:4px 3px">М1▲</th>
+        <th style="background:#ecfdf3;border-left:1px dashed #d0d5dd;color:#7a0000;font-weight:700;font-size:9px;padding:4px 3px">М2▼</th>
+        <th style="background:#ecfdf3;color:#014737;font-weight:700;font-size:9px;padding:4px 3px">М2▲</th>
+        <th style="background:#ecfdf3;border-left:1px dashed #d0d5dd;color:#7a0000;font-weight:700;font-size:9px;padding:4px 3px">М3▼</th>
+        <th style="background:#ecfdf3;color:#014737;font-weight:700;font-size:9px;padding:4px 3px">М3▲</th>
+        <th style="background:#ecfdf3;border-left:1px dashed #d0d5dd;color:#7a0000;font-weight:700;font-size:9px;padding:4px 3px">М4▼</th>
+        <th style="background:#ecfdf3;color:#014737;font-weight:700;font-size:9px;padding:4px 3px">М4▲</th>
+        <th style="background:#ecfdf3;border-left:1px dashed #d0d5dd;color:#7a0000;font-weight:700;font-size:9px;padding:4px 3px">М5▼</th>
+        <th style="background:#ecfdf3;color:#014737;font-weight:700;font-size:9px;padding:4px 3px">М5▲</th>
         <th class="th-start">СТАРТ</th>
         <th class="th-down">MIN</th><th class="th-down">@М:СС</th>
         <th class="th-down">MAX</th><th class="th-down">@М:СС</th>
-        <th class="th-down m-sep" style="color:#7a0000">М1▼</th><th class="th-down" style="color:#014737">М1▲</th>
-        <th class="th-down m-sep" style="color:#7a0000">М2▼</th><th class="th-down" style="color:#014737">М2▲</th>
-        <th class="th-down m-sep" style="color:#7a0000">М3▼</th><th class="th-down" style="color:#014737">М3▲</th>
-        <th class="th-down m-sep" style="color:#7a0000">М4▼</th><th class="th-down" style="color:#014737">М4▲</th>
-        <th class="th-down m-sep" style="color:#7a0000">М5▼</th><th class="th-down" style="color:#014737">М5▲</th>
+        <th style="background:#fff4f2;border-left:1px dashed #d0d5dd;color:#7a0000;font-weight:700;font-size:9px;padding:4px 3px">М1▼</th>
+        <th style="background:#fff4f2;color:#014737;font-weight:700;font-size:9px;padding:4px 3px">М1▲</th>
+        <th style="background:#fff4f2;border-left:1px dashed #d0d5dd;color:#7a0000;font-weight:700;font-size:9px;padding:4px 3px">М2▼</th>
+        <th style="background:#fff4f2;color:#014737;font-weight:700;font-size:9px;padding:4px 3px">М2▲</th>
+        <th style="background:#fff4f2;border-left:1px dashed #d0d5dd;color:#7a0000;font-weight:700;font-size:9px;padding:4px 3px">М3▼</th>
+        <th style="background:#fff4f2;color:#014737;font-weight:700;font-size:9px;padding:4px 3px">М3▲</th>
+        <th style="background:#fff4f2;border-left:1px dashed #d0d5dd;color:#7a0000;font-weight:700;font-size:9px;padding:4px 3px">М4▼</th>
+        <th style="background:#fff4f2;color:#014737;font-weight:700;font-size:9px;padding:4px 3px">М4▲</th>
+        <th style="background:#fff4f2;border-left:1px dashed #d0d5dd;color:#7a0000;font-weight:700;font-size:9px;padding:4px 3px">М5▼</th>
+        <th style="background:#fff4f2;color:#014737;font-weight:700;font-size:9px;padding:4px 3px">М5▲</th>
       </tr>
     </thead>
     <tbody id="table-body"></tbody>
@@ -544,7 +554,7 @@ function renderTable(data) {
       <td class="td-down-dim m-sep">${fmt(m.down_min_m3)}</td><td class="td-down-dim">${fmt(m.down_max_m3)}</td>
       <td class="td-down-dim m-sep">${fmt(m.down_min_m4)}</td><td class="td-down-dim">${fmt(m.down_max_m4)}</td>
       <td class="td-down-dim m-sep">${fmt(m.down_min_m5)}</td><td class="td-down-dim">${fmt(m.down_max_m5)}</td>
-      <td style="text-align:center">${badge}</td>
+      <td style="text-align:center;position:sticky;right:0;background:#fff;border-left:2px solid #d0d5dd">${badge}</td>
     `;
     tbody.appendChild(tr);
   }
