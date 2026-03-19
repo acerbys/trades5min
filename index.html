@@ -60,6 +60,33 @@ body {
 
 .logo span { color: var(--dim); }
 
+.coin-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 16px;
+  background: var(--white);
+  border-bottom: 2px solid var(--border);
+  overflow-x: auto;
+}
+
+.coin-tab {
+  padding: 5px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.coin-tab:hover { background: var(--border2); color: var(--text); }
+.coin-tab.active { background: var(--text); color: var(--white); border-color: var(--text); }
+
 .header-right { display: flex; align-items: center; gap: 8px; }
 
 .clock {
@@ -331,6 +358,16 @@ td.left { text-align: left; }
   </div>
 </div>
 
+<div class="coin-tabs">
+  <button class="coin-tab active" onclick="switchCoin('btc', this)">₿ BTC</button>
+  <button class="coin-tab" onclick="switchCoin('eth', this)">Ξ ETH</button>
+  <button class="coin-tab" onclick="switchCoin('sol', this)">◎ SOL</button>
+  <button class="coin-tab" onclick="switchCoin('xrp', this)">✕ XRP</button>
+  <button class="coin-tab" onclick="switchCoin('doge', this)">Ð DOGE</button>
+  <button class="coin-tab" onclick="switchCoin('hype', this)">⚡ HYPE</button>
+  <button class="coin-tab" onclick="switchCoin('bnb', this)">◈ BNB</button>
+</div>
+
 <div class="live-panel">
   <div class="live-card">
     <div class="live-label">Текущий маркет</div>
@@ -430,6 +467,16 @@ td.left { text-align: left; }
 <script>
 let liveData = null;
 let selectedSlug = null;
+let currentCoin = 'btc';
+
+function switchCoin(coin, btn) {
+  currentCoin = coin;
+  document.querySelectorAll('.coin-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedSlug = null;
+  document.getElementById('btn-del-row').style.display = 'none';
+  loadData();
+}
 
 function fmt(v) {
   if (v === null || v === undefined) return '—';
@@ -482,7 +529,7 @@ async function loadData() {
   document.getElementById('main-table').style.display = 'none';
   document.getElementById('error').style.display = 'none';
   try {
-    const res = await fetch('/api/data');
+    const res = await fetch(`/api/data?coin=${currentCoin}`);
     const data = await res.json();
     if (!Array.isArray(data)) throw new Error(data.error || 'Bad response');
     liveData = data;
@@ -500,7 +547,7 @@ function renderTable(data) {
 
   const s = new Date(bucket*1000), e = new Date((bucket+300)*1000);
   const p = t => `${String(t.getUTCHours()).padStart(2,'0')}:${String(t.getUTCMinutes()).padStart(2,'0')}`;
-  document.getElementById('market-label').textContent = `${p(s)}–${p(e)} UTC`;
+  document.getElementById('market-label').textContent = `${currentCoin.toUpperCase()} ${p(s)}–${p(e)} UTC`;
   document.getElementById('market-date').textContent = `${String(s.getUTCDate()).padStart(2,'0')}.${String(s.getUTCMonth()+1).padStart(2,'0')} ${p(s)}`;
 
   const closed = data.filter(m => m.outcome);
