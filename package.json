@@ -4,10 +4,12 @@
   "description": "Polymarket BTC 5min WebSocket trade collector",
   "main": "collector.js",
   "scripts": {
-    "start": "node collector.js"
+    "start": "node setup-db.js && node collector.js",
+    "setup": "node setup-db.js"
   },
   "dependencies": {
     "node-fetch": "2.7.0",
+    "pg": "8.11.3",
     "ws": "8.18.0"
   }
 }
