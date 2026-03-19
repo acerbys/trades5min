@@ -235,6 +235,10 @@ th.th-up { color: var(--up) !important; background: var(--up-bg) !important; bor
 th.th-start { color: #1570ef !important; background: #eff8ff !important; border-left: 2px solid #b2ddff !important; font-weight: 700 !important; }
 th.th-down { color: var(--down) !important; background: var(--down-bg) !important; border-left: 2px solid var(--down-border) !important; }
 th.th-meta { color: var(--dim); }
+th.col-date { width: 36px; max-width: 36px; }
+th.col-period { width: 72px; max-width: 72px; }
+td.col-date { width: 36px; max-width: 36px; overflow: hidden; }
+td.col-period { width: 72px; max-width: 72px; overflow: hidden; }
 
 tbody tr {
   border-bottom: 1px solid var(--border2);
@@ -262,7 +266,8 @@ td.left { text-align: left; }
 .td-start { background: #eff8ff; color: #1570ef; font-weight: 700; border-left: 2px solid #b2ddff !important; }
 .td-time { color: var(--dim); font-size: 10px; }
 .td-meta { color: var(--text); font-weight: 600; }
-.td-period { color: var(--text); font-weight: 700; font-family: var(--sans); font-size: 12px; }
+.td-period { color: var(--text); font-weight: 700; font-family: var(--sans); font-size: 11px; }
+.td-date { color: var(--dim); font-size: 10px; }
 .td-date { color: var(--dim); font-size: 11px; }
 
 /* minute cols separator */
@@ -372,11 +377,11 @@ td.left { text-align: left; }
   <table id="main-table" style="display:none">
     <thead>
       <tr>
-        <th class="th-meta" rowspan="2">ДАТА</th>
-        <th class="th-meta" rowspan="2">ПЕРИОД</th>
+        <th class="th-meta col-date" rowspan="2">ДАТА</th>
+        <th class="th-meta col-period" rowspan="2">ПЕРИОД</th>
         <th class="th-up" colspan="12">▲ UP</th>
         <th class="th-down" colspan="12">▼ DOWN</th>
-        <th class="th-meta" rowspan="2">ИСХОД</th>
+        <th class="th-meta" rowspan="2" style="min-width:52px">ИСХОД</th>
       </tr>
       <tr>
         <th class="th-start">СТАРТ</th>
@@ -521,8 +526,8 @@ function renderTable(data) {
     const ms = 'm-sep ';
 
     tr.innerHTML = `
-      <td class="td-date left">${fmtDate(m.market_start)}</td>
-      <td class="td-period left">${fmtPeriod(m.market_start)}</td>
+      <td class="td-date left col-date">${fmtDate(m.market_start)}</td>
+      <td class="td-period left col-period">${fmtPeriod(m.market_start)}</td>
       <td class="td-start">${fmt(m.up_start)}</td>
       ${u(m.up_min)} ${t(m.up_min_time)}
       ${u(m.up_max)} ${t(m.up_max_time)}
