@@ -319,6 +319,9 @@ function updateAggCoin(coin, trade, marketStart) {
 
   const m = elapsed < 60 ? 1 : elapsed < 120 ? 2 : elapsed < 180 ? 3 : elapsed < 240 ? 4 : 5;
 
+  // Ignore extreme prices (post-market settlement trades: >95c or <5c)
+  if (price > 0.95 || price < 0.05) return;
+
   if (trade.outcome === 'Up') {
     if (a.up_start === null) a.up_start = price;
     if (a.up_min === null || price < a.up_min) { a.up_min = price; a.up_min_time = elapsed; }
