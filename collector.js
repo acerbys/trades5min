@@ -518,7 +518,7 @@ async function main() {
     }
   }
 
-  setInterval(checkAllMarkets, 5000);
+  setInterval(checkAllMarkets, 1000);
 }
 
 main().catch(err => { console.error('[main] Fatal:', err); process.exit(1); });
