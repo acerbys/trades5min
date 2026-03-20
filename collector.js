@@ -430,34 +430,68 @@ async function checkAllMarkets() {
   const bucket = getCurrentBucket();
   const secsToNext = 300 - (nowSec - bucket);
 
-  for (const coin of COINS) {
-    const state = coinState[coin];
-    const slug = slugFromBucketCoin(bucket, coin);
+  // Check which coins need new market
+  const coinsNeedSwitch = COINS.filter(coin => slugFromBucketCoin(bucket, coin) !== coinState[coin].currentSlug);
 
-    if (slug !== state.currentSlug) {
-      console.log(`[${coin}] New market: ${slug}`);
-      await upsertAggCoin(coin);
+  if (coinsNeedSwitch.length > 0) {
+    // Upsert all first
+    await Promise.all(coinsNeedSwitch.map(coin => upsertAggCoin(coin)));
+
+    // Connect all that have prefetched data
+    const coinsNeedFetch = [];
+    for (const coin of coinsNeedSwitch) {
+      const state = coinState[coin];
+      const slug = slugFromBucketCoin(bucket, coin);
       if (state.nextSlug === slug && state.nextTokenUp) {
         connectCoin(coin, slug, state.nextConditionId, state.nextTokenUp, state.nextTokenDown);
         state.nextSlug = null;
       } else {
-        const market = await getMarketDataCoin(slug);
-        if (market && market.tokenUp) connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
+        coinsNeedFetch.push(coin);
       }
     }
 
-    if (secsToNext <= 30 && state.nextSlug !== slugFromBucketCoin(bucket + 300, coin)) {
-      const nextSlug = slugFromBucketCoin(bucket + 300, coin);
-      getMarketDataCoin(nextSlug).then(market => {
-        if (market && market.tokenUp) {
-          state.nextSlug = nextSlug;
-          state.nextConditionId = market.conditionId;
-          state.nextTokenUp = market.tokenUp;
-          state.nextTokenDown = market.tokenDown;
-          console.log(`[${coin}] Prefetched: ${nextSlug}`);
-        }
-      });
+    // Fetch missing in parallel and connect
+    if (coinsNeedFetch.length > 0) {
+      const fetched = await Promise.all(
+        coinsNeedFetch.map(coin => {
+          const slug = slugFromBucketCoin(bucket, coin);
+          return getMarketDataCoin(slug).then(market => ({ coin, slug, market }));
+        })
+      );
+      for (const { coin, slug, market } of fetched) {
+        if (market && market.tokenUp) connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
+      }
     }
+  }
+
+  // Prefetch next markets 30s before switch - all in parallel
+  if (secsToNext <= 30) {
+    const coinsToPrefetch = COINS.filter(coin => {
+      const nextSlug = slugFromBucketCoin(bucket + 300, coin);
+      return coinState[coin].nextSlug !== nextSlug;
+    });
+
+    Promise.all(
+      coinsToPrefetch.map(coin => {
+        const nextSlug = slugFromBucketCoin(bucket + 300, coin);
+        return getMarketDataCoin(nextSlug).then(market => {
+          if (market && market.tokenUp) {
+            coinState[coin].nextSlug = nextSlug;
+            coinState[coin].nextConditionId = market.conditionId;
+            coinState[coin].nextTokenUp = market.tokenUp;
+            coinState[coin].nextTokenDown = market.tokenDown;
+            console.log(`[${coin}] Prefetched: ${nextSlug}`);
+          }
+        });
+      })
+    );
+  }
+
+  // Extra upsert 10 seconds after market close to capture outcome
+  const secsAfterClose = (nowSec - bucket) - 300;
+  if (secsAfterClose >= 10 && secsAfterClose <= 15) {
+    await Promise.all(COINS.map(coin => upsertAggCoin(coin)));
+    console.log('[checkAllMarkets] Post-close upsert for outcomes');
   }
 }
 
@@ -469,12 +503,21 @@ setInterval(async () => {
 async function main() {
   console.log('[main] Starting multi-coin collector...');
   const bucket = getCurrentBucket();
-  for (const coin of COINS) {
-    const slug = slugFromBucketCoin(bucket, coin);
-    const market = await getMarketDataCoin(slug);
-    if (market && market.tokenUp) connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
-    await new Promise(r => setTimeout(r, 500)); // small delay between coins
+
+  // Fetch all market data in parallel, then connect all at once
+  const results = await Promise.all(
+    COINS.map(coin => {
+      const slug = slugFromBucketCoin(bucket, coin);
+      return getMarketDataCoin(slug).then(market => ({ coin, slug, market }));
+    })
+  );
+
+  for (const { coin, slug, market } of results) {
+    if (market && market.tokenUp) {
+      connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
+    }
   }
+
   setInterval(checkAllMarkets, 5000);
 }
 
