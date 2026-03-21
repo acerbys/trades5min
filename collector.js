@@ -281,32 +281,22 @@ async function getMarketDataCoin(slug) {
       const tokens = JSON.parse(market.clobTokenIds);
       tokenUp = tokens[0]; tokenDown = tokens[1];
     }
-    // outcomePrices: ["0.52", "0.48"] — UP price, DOWN price at market open
-    let startUp = null, startDown = null;
-    if (market.outcomePrices) {
-      try {
-        const prices = JSON.parse(market.outcomePrices);
-        startUp = parseFloat(prices[0]);
-        startDown = parseFloat(prices[1]);
-      } catch(e) {}
-    }
-    return { conditionId: market.conditionId, tokenUp, tokenDown, startUp, startDown };
+    return { conditionId: market.conditionId, tokenUp, tokenDown };
   } catch (err) {
     console.error(`[getMarketData] Error for ${slug}:`, err.message);
     return null;
   }
 }
 
-function initAggCoin(coin, slug, marketStart, startUp, startDown) {
+function initAggCoin(coin, slug, marketStart) {
   coinState[coin].agg = {
     slug, coin, market_start: marketStart,
-    // Use Gamma API prices as starting prices if available
-    up_start: (startUp && startUp > 0.05 && startUp < 0.95) ? startUp : null,
+    up_start: null,
     up_min: null, up_min_time: null, up_max: null, up_max_time: null,
     up_min_m1: null, up_max_m1: null, up_min_m2: null, up_max_m2: null,
     up_min_m3: null, up_max_m3: null, up_min_m4: null, up_max_m4: null,
     up_min_m5: null, up_max_m5: null,
-    down_start: (startDown && startDown > 0.05 && startDown < 0.95) ? startDown : null,
+    down_start: null,
     down_min: null, down_min_time: null, down_max: null, down_max_time: null,
     down_min_m1: null, down_max_m1: null, down_min_m2: null, down_max_m2: null,
     down_min_m3: null, down_max_m3: null, down_min_m4: null, down_max_m4: null,
@@ -329,21 +319,25 @@ function updateAggCoin(coin, trade, marketStart) {
     return;
   }
 
-  const m = elapsed < 60 ? 1 : elapsed < 120 ? 2 : elapsed < 180 ? 3 : elapsed < 240 ? 4 : 5;
+  // Accept trades up to 3 seconds before market start (clock skew)
+  if (elapsed < -3) return;
+
+  const effectiveElapsed = Math.max(0, elapsed);
+  const m = effectiveElapsed < 60 ? 1 : effectiveElapsed < 120 ? 2 : effectiveElapsed < 180 ? 3 : effectiveElapsed < 240 ? 4 : 5;
 
   // Ignore extreme prices (post-market settlement trades: >95c or <5c)
   if (price > 0.95 || price < 0.05) return;
 
   if (trade.outcome === 'Up') {
     if (a.up_start === null) a.up_start = price;
-    if (a.up_min === null || price < a.up_min) { a.up_min = price; a.up_min_time = elapsed; }
-    if (a.up_max === null || price > a.up_max) { a.up_max = price; a.up_max_time = elapsed; }
+    if (a.up_min === null || price < a.up_min) { a.up_min = price; a.up_min_time = effectiveElapsed; }
+    if (a.up_max === null || price > a.up_max) { a.up_max = price; a.up_max_time = effectiveElapsed; }
     if (a[`up_min_m${m}`] === null || price < a[`up_min_m${m}`]) a[`up_min_m${m}`] = price;
     if (a[`up_max_m${m}`] === null || price > a[`up_max_m${m}`]) a[`up_max_m${m}`] = price;
   } else if (trade.outcome === 'Down') {
     if (a.down_start === null) a.down_start = price;
-    if (a.down_min === null || price < a.down_min) { a.down_min = price; a.down_min_time = elapsed; }
-    if (a.down_max === null || price > a.down_max) { a.down_max = price; a.down_max_time = elapsed; }
+    if (a.down_min === null || price < a.down_min) { a.down_min = price; a.down_min_time = effectiveElapsed; }
+    if (a.down_max === null || price > a.down_max) { a.down_max = price; a.down_max_time = effectiveElapsed; }
     if (a[`down_min_m${m}`] === null || price < a[`down_min_m${m}`]) a[`down_min_m${m}`] = price;
     if (a[`down_max_m${m}`] === null || price > a[`down_max_m${m}`]) a[`down_max_m${m}`] = price;
   }
@@ -392,7 +386,7 @@ async function upsertAggCoin(coin) {
   }
 }
 
-function connectCoin(coin, slug, conditionId, tokenUp, tokenDown, startUp, startDown) {
+function connectCoin(coin, slug, conditionId, tokenUp, tokenDown) {
   const state = coinState[coin];
   if (state.ws) { state.ws.removeAllListeners(); state.ws.terminate(); state.ws = null; }
   if (!tokenUp || !tokenDown) return;
@@ -400,8 +394,7 @@ function connectCoin(coin, slug, conditionId, tokenUp, tokenDown, startUp, start
   const marketStart = parseInt(slug.split('-').pop());
   state.currentSlug = slug; state.conditionId = conditionId;
   state.tokenUp = tokenUp; state.tokenDown = tokenDown;
-  initAggCoin(coin, slug, marketStart, startUp, startDown);
-  console.log(`[${coin}] Start prices from Gamma: UP=${startUp} DOWN=${startDown}`);
+  initAggCoin(coin, slug, marketStart);
 
   console.log(`[${coin}] Connecting for ${slug}`);
   const ws = new WebSocket(WS_URL);
@@ -459,7 +452,7 @@ async function checkAllMarkets() {
       const state = coinState[coin];
       const slug = slugFromBucketCoin(bucket, coin);
       if (state.nextSlug === slug && state.nextTokenUp) {
-        connectCoin(coin, slug, state.nextConditionId, state.nextTokenUp, state.nextTokenDown, state.nextStartUp, state.nextStartDown);
+        connectCoin(coin, slug, state.nextConditionId, state.nextTokenUp, state.nextTokenDown);
         state.nextSlug = null;
       } else {
         coinsNeedFetch.push(coin);
@@ -475,7 +468,7 @@ async function checkAllMarkets() {
         })
       );
       for (const { coin, slug, market } of fetched) {
-        if (market && market.tokenUp) connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown, market.startUp, market.startDown);
+        if (market && market.tokenUp) connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
       }
     }
   }
@@ -530,7 +523,7 @@ async function main() {
 
   for (const { coin, slug, market } of results) {
     if (market && market.tokenUp) {
-      connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown, market.startUp, market.startDown);
+      connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
     }
   }
 
