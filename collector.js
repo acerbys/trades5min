@@ -443,10 +443,7 @@ async function checkAllMarkets() {
   const coinsNeedSwitch = COINS.filter(coin => slugFromBucketCoin(bucket, coin) !== coinState[coin].currentSlug);
 
   if (coinsNeedSwitch.length > 0) {
-    // Upsert all first
-    await Promise.all(coinsNeedSwitch.map(coin => upsertAggCoin(coin)));
-
-    // Connect all that have prefetched data
+    // FIRST: connect immediately all coins that have prefetched data - no waiting
     const coinsNeedFetch = [];
     for (const coin of coinsNeedSwitch) {
       const state = coinState[coin];
@@ -459,17 +456,19 @@ async function checkAllMarkets() {
       }
     }
 
+    // THEN: upsert old data in background (don't await)
+    Promise.all(coinsNeedSwitch.map(coin => upsertAggCoin(coin))).catch(e => console.error('[upsert bg]', e.message));
+
     // Fetch missing in parallel and connect
     if (coinsNeedFetch.length > 0) {
-      const fetched = await Promise.all(
+      Promise.all(
         coinsNeedFetch.map(coin => {
           const slug = slugFromBucketCoin(bucket, coin);
-          return getMarketDataCoin(slug).then(market => ({ coin, slug, market }));
+          return getMarketDataCoin(slug).then(market => {
+            if (market && market.tokenUp) connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
+          });
         })
-      );
-      for (const { coin, slug, market } of fetched) {
-        if (market && market.tokenUp) connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
-      }
+      ).catch(e => console.error('[fetch bg]', e.message));
     }
   }
 
