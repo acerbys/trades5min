@@ -50,15 +50,41 @@ body {
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
-.logo {
+.interval-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.interval-btn {
+  background: none;
+  border: none;
   font-family: var(--mono);
   font-size: 14px;
   font-weight: 600;
-  color: var(--text);
   letter-spacing: 1px;
+  color: #cbd5e1;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.15s;
 }
 
-.logo span { color: var(--dim); }
+.interval-btn.active {
+  color: var(--text);
+}
+
+.interval-btn:not(.active):hover {
+  color: #667085;
+}
+
+.interval-sep {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: #e2e8f0;
+  padding: 0 8px;
+  user-select: none;
+}
 
 .coin-tabs {
   display: flex;
@@ -294,10 +320,8 @@ td.left { text-align: left; }
 .td-time { color: var(--dim); font-size: 12px; }
 .td-meta { color: var(--text); font-weight: 600; }
 .td-period { color: var(--text); font-weight: 700; font-family: var(--sans); font-size: 11px; }
-.td-date { color: var(--dim); font-size: 10px; }
 .td-date { color: var(--dim); font-size: 11px; }
 
-/* minute cols separator */
 .m-sep { border-left: 1px dashed var(--border) !important; }
 
 .outcome-badge {
@@ -348,7 +372,11 @@ td.left { text-align: left; }
 <body>
 
 <div class="header">
-  <div class="logo">BTC<span>/</span>5MIN <span>//</span> POLYMARKET TRACKER</div>
+  <div class="interval-switcher">
+    <button id="btn-5m" class="interval-btn active" onclick="switchInterval('5m')">BTC/5MIN // POLYMARKET TRACKER</button>
+    <span class="interval-sep">//</span>
+    <button id="btn-15m" class="interval-btn" onclick="switchInterval('15m')">BTC/15MIN // POLYMARKET TRACKER</button>
+  </div>
   <div class="header-right">
     <span class="clock"><span class="live-dot"></span><span id="live-time">—</span> UTC</span>
     <button class="btn" onclick="loadData()">⟳ Refresh</button>
@@ -386,7 +414,7 @@ td.left { text-align: left; }
   <div class="live-card">
     <div class="live-label">Осталось</div>
     <div class="live-value timer" id="timer">—</div>
-    <div class="live-sub">из 5:00 минут</div>
+    <div class="live-sub">из <span id="live-duration">5:00</span> минут</div>
   </div>
   <div class="live-card">
     <div class="live-label">Прошло от старта</div>
@@ -404,7 +432,7 @@ td.left { text-align: left; }
 </div>
 
 <div class="section-title">
-  <span>История маркетов — полная 5-минутная свеча</span>
+  <span id="section-label">История маркетов — полная 5-минутная свеча</span>
   <span id="table-count"></span>
 </div>
 
@@ -468,11 +496,26 @@ td.left { text-align: left; }
 let liveData = null;
 let selectedSlug = null;
 let currentCoin = 'btc';
+let currentInterval = '5m';
 
 function switchCoin(coin, btn) {
   currentCoin = coin;
   document.querySelectorAll('.coin-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  selectedSlug = null;
+  document.getElementById('btn-del-row').style.display = 'none';
+  loadData();
+}
+
+function switchInterval(interval) {
+  if (currentInterval === interval) return;
+  currentInterval = interval;
+  document.getElementById('btn-5m').classList.toggle('active', interval === '5m');
+  document.getElementById('btn-15m').classList.toggle('active', interval === '15m');
+  const mins = interval === '15m' ? '15' : '5';
+  document.getElementById('live-duration').textContent = mins + ':00';
+  document.getElementById('section-label').textContent =
+    `История маркетов — полная ${mins}-минутная свеча`;
   selectedSlug = null;
   document.getElementById('btn-del-row').style.display = 'none';
   loadData();
@@ -496,7 +539,8 @@ function fmtDate(ts) {
 
 function fmtPeriod(ts) {
   const tsNum = parseInt(ts);
-  const s = new Date(tsNum*1000), e = new Date((tsNum+300)*1000);
+  const intervalSec = currentInterval === '15m' ? 900 : 300;
+  const s = new Date(tsNum*1000), e = new Date((tsNum+intervalSec)*1000);
   const p = t => `${String(t.getUTCHours()).padStart(2,'0')}:${String(t.getUTCMinutes()).padStart(2,'0')}`;
   return `${p(s)}–${p(e)}`;
 }
@@ -505,10 +549,12 @@ function updateClock() {
   const now = new Date();
   document.getElementById('live-time').textContent =
     `${String(now.getUTCHours()).padStart(2,'0')}:${String(now.getUTCMinutes()).padStart(2,'0')}:${String(now.getUTCSeconds()).padStart(2,'0')}`;
+
+  const intervalSec = currentInterval === '15m' ? 900 : 300;
   const nowSec = Math.floor(Date.now()/1000);
-  const bucket = Math.floor(nowSec/300)*300;
+  const bucket = Math.floor(nowSec/intervalSec)*intervalSec;
   const elapsed = nowSec - bucket;
-  const remaining = 300 - elapsed;
+  const remaining = intervalSec - elapsed;
   document.getElementById('timer').textContent = `${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,'0')}`;
   document.getElementById('elapsed').textContent = fmtTime(elapsed);
 
@@ -529,7 +575,7 @@ async function loadData() {
   document.getElementById('main-table').style.display = 'none';
   document.getElementById('error').style.display = 'none';
   try {
-    const res = await fetch(`/api/data?coin=${currentCoin}`);
+    const res = await fetch(`/api/data?coin=${currentCoin}&interval=${currentInterval}`);
     const data = await res.json();
     if (!Array.isArray(data)) throw new Error(data.error || 'Bad response');
     liveData = data;
@@ -542,10 +588,11 @@ async function loadData() {
 }
 
 function renderTable(data) {
+  const intervalSec = currentInterval === '15m' ? 900 : 300;
   const now = Math.floor(Date.now()/1000);
-  const bucket = Math.floor(now/300)*300;
+  const bucket = Math.floor(now/intervalSec)*intervalSec;
 
-  const s = new Date(bucket*1000), e = new Date((bucket+300)*1000);
+  const s = new Date(bucket*1000), e = new Date((bucket+intervalSec)*1000);
   const p = t => `${String(t.getUTCHours()).padStart(2,'0')}:${String(t.getUTCMinutes()).padStart(2,'0')}`;
   document.getElementById('market-label').textContent = `${currentCoin.toUpperCase()} ${p(s)}–${p(e)} UTC`;
   document.getElementById('market-date').textContent = `${String(s.getUTCDate()).padStart(2,'0')}.${String(s.getUTCMonth()+1).padStart(2,'0')} ${p(s)}`;
@@ -580,7 +627,6 @@ function renderTable(data) {
     const u = (v, cls='td-up') => `<td class="${cls}">${fmt(v)}</td>`;
     const d = (v, cls='td-down') => `<td class="${cls}">${fmt(v)}</td>`;
     const t = (v) => `<td class="td-time">${fmtTime(v)}</td>`;
-    const ms = 'm-sep ';
 
     tr.innerHTML = `
       <td class="td-date left col-date">${fmtDate(m.market_start)}</td>
@@ -643,7 +689,7 @@ function exportCSV() {
   const csv = [h,...rows].map(r=>r.join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-  a.download = `btc5min_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = `polymarket_${currentCoin}_${currentInterval}_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 }
 
