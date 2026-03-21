@@ -262,6 +262,7 @@ for (const coin of COINS) {
   coinState[coin] = {
     currentSlug: null, conditionId: null, tokenUp: null, tokenDown: null,
     nextSlug: null, nextConditionId: null, nextTokenUp: null, nextTokenDown: null,
+    nextWs: null, nextWsTokenUp: null, nextWsTokenDown: null,
     ws: null, reconnectTimer: null, agg: null, upsertCounter: 0
   };
 }
@@ -386,23 +387,6 @@ async function upsertAggCoin(coin) {
   }
 }
 
-function subscribeCoin(coin, slug, conditionId, tokenUp, tokenDown) {
-  // Reuse existing WS connection - just send new subscription
-  const state = coinState[coin];
-  const marketStart = parseInt(slug.split('-').pop());
-  state.currentSlug = slug; state.conditionId = conditionId;
-  state.tokenUp = tokenUp; state.tokenDown = tokenDown;
-  initAggCoin(coin, slug, marketStart);
-
-  if (state.ws && state.ws.readyState === 1) { // OPEN
-    state.ws.send(JSON.stringify({ auth: {}, type: 'Market', assets_ids: [tokenUp, tokenDown] }));
-    console.log(`[${coin}] Resubscribed to ${slug}`);
-    return;
-  }
-  // Need new connection
-  connectCoin(coin, slug, conditionId, tokenUp, tokenDown);
-}
-
 function connectCoin(coin, slug, conditionId, tokenUp, tokenDown) {
   const state = coinState[coin];
   if (state.ws) { state.ws.removeAllListeners(); state.ws.terminate(); state.ws = null; }
@@ -418,8 +402,8 @@ function connectCoin(coin, slug, conditionId, tokenUp, tokenDown) {
   state.ws = ws;
 
   ws.on('open', () => {
-    ws.send(JSON.stringify({ auth: {}, type: 'Market', assets_ids: [state.tokenUp, state.tokenDown] }));
-    console.log(`[${coin}] Subscribed to ${state.currentSlug}`);
+    ws.send(JSON.stringify({ auth: {}, type: 'Market', assets_ids: [tokenUp, tokenDown] }));
+    console.log(`[${coin}] Subscribed to ${slug}`);
   });
 
   ws.on('message', async (data) => {
@@ -467,7 +451,46 @@ async function checkAllMarkets() {
       const state = coinState[coin];
       const slug = slugFromBucketCoin(bucket, coin);
       if (state.nextSlug === slug && state.nextTokenUp) {
-        subscribeCoin(coin, slug, state.nextConditionId, state.nextTokenUp, state.nextTokenDown);
+        // Use pre-connected WS if available
+        if (state.nextWs && state.nextWs.readyState <= 1) {
+          if (state.ws) { state.ws.removeAllListeners(); state.ws.terminate(); }
+          const mStart = parseInt(slug.split('-').pop());
+          state.currentSlug = slug; state.conditionId = state.nextConditionId;
+          state.tokenUp = state.nextTokenUp; state.tokenDown = state.nextTokenDown;
+          state.ws = state.nextWs; state.nextWs = null;
+          initAggCoin(coin, slug, mStart);
+          // Set up message handler on pre-connected ws
+          state.ws.removeAllListeners('message');
+          state.ws.removeAllListeners('error');
+          state.ws.removeAllListeners('close');
+          state.ws.on('message', async (data) => {
+            try {
+              const messages = JSON.parse(data.toString());
+              const arr = Array.isArray(messages) ? messages : [messages];
+              for (const msg of arr) {
+                if (!msg.asset_id || msg.price === undefined || msg.size === undefined || msg.price_changes || msg.bids || msg.asks) continue;
+                let outcome = 'Unknown';
+                if (msg.asset_id === state.tokenUp) outcome = 'Up';
+                else if (msg.asset_id === state.tokenDown) outcome = 'Down';
+                const ts = msg.timestamp ? (msg.timestamp > 1e12 ? new Date(Number(msg.timestamp)).toISOString() : new Date(Number(msg.timestamp)*1000).toISOString()) : new Date().toISOString();
+                const ms2 = parseInt(state.currentSlug.split('-').pop());
+                const trade = { slug: state.currentSlug, condition_id: state.conditionId, timestamp: ts, outcome, price: parseFloat(msg.price), size: parseFloat(msg.size), side: msg.side || null };
+                updateAggCoin(coin, trade, ms2);
+                state.upsertCounter++;
+                if (state.upsertCounter % 10 === 0) await upsertAggCoin(coin);
+              }
+            } catch(err) { console.error(`[${coin}] message error:`, err.message); }
+          });
+          state.ws.on('error', (err) => console.error(`[${coin}] WS error:`, err.message));
+          state.ws.on('close', () => {
+            upsertAggCoin(coin);
+            clearTimeout(state.reconnectTimer);
+            state.reconnectTimer = setTimeout(() => connectCoin(coin, state.currentSlug, state.conditionId, state.tokenUp, state.tokenDown), 5000);
+          });
+          console.log(`[${coin}] Switched to pre-connected ${slug}`);
+        } else {
+          connectCoin(coin, slug, state.nextConditionId, state.nextTokenUp, state.nextTokenDown);
+        }
         state.nextSlug = null;
       } else {
         coinsNeedFetch.push(coin);
@@ -483,7 +506,7 @@ async function checkAllMarkets() {
         coinsNeedFetch.map(coin => {
           const slug = slugFromBucketCoin(bucket, coin);
           return getMarketDataCoin(slug).then(market => {
-            if (market && market.tokenUp) subscribeCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
+            if (market && market.tokenUp) connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
           });
         })
       ).catch(e => console.error('[fetch bg]', e.message));
@@ -507,6 +530,20 @@ async function checkAllMarkets() {
             coinState[coin].nextTokenUp = market.tokenUp;
             coinState[coin].nextTokenDown = market.tokenDown;
             console.log(`[${coin}] Prefetched: ${nextSlug}`);
+
+            // Pre-connect 10 seconds before market start if we have time
+            if (secsToNext <= 10) {
+              // Store next WS connection ready to go
+              const nextWs = new WebSocket(WS_URL);
+              coinState[coin].nextWs = nextWs;
+              coinState[coin].nextWsTokenUp = market.tokenUp;
+              coinState[coin].nextWsTokenDown = market.tokenDown;
+              nextWs.on('open', () => {
+                nextWs.send(JSON.stringify({ auth: {}, type: 'Market', assets_ids: [market.tokenUp, market.tokenDown] }));
+                console.log(`[${coin}] Pre-connected to ${nextSlug}`);
+              });
+              nextWs.on('error', () => { coinState[coin].nextWs = null; });
+            }
           }
         });
       })
