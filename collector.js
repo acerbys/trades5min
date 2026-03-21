@@ -514,7 +514,7 @@ async function checkAllMarkets() {
   }
 
   // Prefetch next markets 30s before switch - all in parallel
-  if (secsToNext <= 30) {
+  if (secsToNext <= 60) {
     const coinsToPrefetch = COINS.filter(coin => {
       const nextSlug = slugFromBucketCoin(bucket + 300, coin);
       return coinState[coin].nextSlug !== nextSlug;
@@ -531,23 +531,28 @@ async function checkAllMarkets() {
             coinState[coin].nextTokenDown = market.tokenDown;
             console.log(`[${coin}] Prefetched: ${nextSlug}`);
 
-            // Pre-connect 10 seconds before market start if we have time
-            if (secsToNext <= 10) {
-              // Store next WS connection ready to go
-              const nextWs = new WebSocket(WS_URL);
-              coinState[coin].nextWs = nextWs;
-              coinState[coin].nextWsTokenUp = market.tokenUp;
-              coinState[coin].nextWsTokenDown = market.tokenDown;
-              nextWs.on('open', () => {
-                nextWs.send(JSON.stringify({ auth: {}, type: 'Market', assets_ids: [market.tokenUp, market.tokenDown] }));
-                console.log(`[${coin}] Pre-connected to ${nextSlug}`);
-              });
-              nextWs.on('error', () => { coinState[coin].nextWs = null; });
-            }
+
           }
         });
       })
     );
+  }
+
+  // Pre-connect new WS 5 seconds before market start
+  if (secsToNext <= 5 && secsToNext > 0) {
+    for (const coin of COINS) {
+      const state = coinState[coin];
+      const nextSlug = slugFromBucketCoin(bucket + 300, coin);
+      if (state.nextSlug === nextSlug && state.nextTokenUp && !state.nextWs) {
+        const nextWs = new WebSocket(WS_URL);
+        state.nextWs = nextWs;
+        nextWs.on('open', () => {
+          nextWs.send(JSON.stringify({ auth: {}, type: 'Market', assets_ids: [state.nextTokenUp, state.nextTokenDown] }));
+          console.log(`[${coin}] Pre-connected to ${nextSlug}`);
+        });
+        nextWs.on('error', () => { state.nextWs = null; });
+      }
+    }
   }
 
   // Extra upsert 10 seconds after market close to capture outcome
