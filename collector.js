@@ -281,21 +281,33 @@ async function getMarketDataCoin(slug) {
       const tokens = JSON.parse(market.clobTokenIds);
       tokenUp = tokens[0]; tokenDown = tokens[1];
     }
-    return { conditionId: market.conditionId, tokenUp, tokenDown };
+    // outcomePrices: ["0.52", "0.48"] — UP price, DOWN price at market open
+    let startUp = null, startDown = null;
+    if (market.outcomePrices) {
+      try {
+        const prices = JSON.parse(market.outcomePrices);
+        startUp = parseFloat(prices[0]);
+        startDown = parseFloat(prices[1]);
+      } catch(e) {}
+    }
+    return { conditionId: market.conditionId, tokenUp, tokenDown, startUp, startDown };
   } catch (err) {
     console.error(`[getMarketData] Error for ${slug}:`, err.message);
     return null;
   }
 }
 
-function initAggCoin(coin, slug, marketStart) {
+function initAggCoin(coin, slug, marketStart, startUp, startDown) {
   coinState[coin].agg = {
     slug, coin, market_start: marketStart,
-    up_start: null, up_min: null, up_min_time: null, up_max: null, up_max_time: null,
+    // Use Gamma API prices as starting prices if available
+    up_start: (startUp && startUp > 0.05 && startUp < 0.95) ? startUp : null,
+    up_min: null, up_min_time: null, up_max: null, up_max_time: null,
     up_min_m1: null, up_max_m1: null, up_min_m2: null, up_max_m2: null,
     up_min_m3: null, up_max_m3: null, up_min_m4: null, up_max_m4: null,
     up_min_m5: null, up_max_m5: null,
-    down_start: null, down_min: null, down_min_time: null, down_max: null, down_max_time: null,
+    down_start: (startDown && startDown > 0.05 && startDown < 0.95) ? startDown : null,
+    down_min: null, down_min_time: null, down_max: null, down_max_time: null,
     down_min_m1: null, down_max_m1: null, down_min_m2: null, down_max_m2: null,
     down_min_m3: null, down_max_m3: null, down_min_m4: null, down_max_m4: null,
     down_min_m5: null, down_max_m5: null,
@@ -380,7 +392,7 @@ async function upsertAggCoin(coin) {
   }
 }
 
-function connectCoin(coin, slug, conditionId, tokenUp, tokenDown) {
+function connectCoin(coin, slug, conditionId, tokenUp, tokenDown, startUp, startDown) {
   const state = coinState[coin];
   if (state.ws) { state.ws.removeAllListeners(); state.ws.terminate(); state.ws = null; }
   if (!tokenUp || !tokenDown) return;
@@ -388,7 +400,8 @@ function connectCoin(coin, slug, conditionId, tokenUp, tokenDown) {
   const marketStart = parseInt(slug.split('-').pop());
   state.currentSlug = slug; state.conditionId = conditionId;
   state.tokenUp = tokenUp; state.tokenDown = tokenDown;
-  initAggCoin(coin, slug, marketStart);
+  initAggCoin(coin, slug, marketStart, startUp, startDown);
+  console.log(`[${coin}] Start prices from Gamma: UP=${startUp} DOWN=${startDown}`);
 
   console.log(`[${coin}] Connecting for ${slug}`);
   const ws = new WebSocket(WS_URL);
@@ -446,7 +459,7 @@ async function checkAllMarkets() {
       const state = coinState[coin];
       const slug = slugFromBucketCoin(bucket, coin);
       if (state.nextSlug === slug && state.nextTokenUp) {
-        connectCoin(coin, slug, state.nextConditionId, state.nextTokenUp, state.nextTokenDown);
+        connectCoin(coin, slug, state.nextConditionId, state.nextTokenUp, state.nextTokenDown, state.nextStartUp, state.nextStartDown);
         state.nextSlug = null;
       } else {
         coinsNeedFetch.push(coin);
@@ -462,7 +475,7 @@ async function checkAllMarkets() {
         })
       );
       for (const { coin, slug, market } of fetched) {
-        if (market && market.tokenUp) connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
+        if (market && market.tokenUp) connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown, market.startUp, market.startDown);
       }
     }
   }
@@ -517,7 +530,7 @@ async function main() {
 
   for (const { coin, slug, market } of results) {
     if (market && market.tokenUp) {
-      connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown);
+      connectCoin(coin, slug, market.conditionId, market.tokenUp, market.tokenDown, market.startUp, market.startDown);
     }
   }
 
